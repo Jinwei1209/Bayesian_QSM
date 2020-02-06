@@ -19,7 +19,7 @@ from utils.files import *
 if __name__ == '__main__':
 
     # default parameters
-    niter = 60
+    niter = 61
     lr = 1e-3
     batch_size = 16
     flag_smv = 1
