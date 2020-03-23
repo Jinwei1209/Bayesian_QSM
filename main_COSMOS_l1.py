@@ -21,7 +21,7 @@ if __name__ == '__main__':
     # default parameters
     niter = 61
     lr = 1e-3
-    batch_size = 16
+    batch_size = 32
     flag_smv = 1
     flag_gen = 1
     trans = 0.15
@@ -39,21 +39,21 @@ if __name__ == '__main__':
     os.environ['CUDA_VISIBLE_DEVICES'] = opt['gpu_id'] 
     t0 = time.time()
 
-    total, used = os.popen(
-        '"nvidia-smi" --query-gpu=memory.total,memory.used --format=csv,nounits,noheader'
-            ).read().split('\n')[int(opt['gpu_id'])].split(',')
+    # total, used = os.popen(
+    #     '"nvidia-smi" --query-gpu=memory.total,memory.used --format=csv,nounits,noheader'
+    #         ).read().split('\n')[int(opt['gpu_id'])].split(',')
     
-    total = int(total)
-    used = int(used)
+    # total = int(total)
+    # used = int(used)
 
-    print('Total memory is {0} MB'.format(total))
-    print('Used memory is {0} MB'.format(used))
+    # print('Total memory is {0} MB'.format(total))
+    # print('Used memory is {0} MB'.format(used))
 
-    max_mem = int(total*0.8)
-    block_mem = max_mem - used
+    # max_mem = int(total*0.8)
+    # block_mem = max_mem - used
     
-    x = torch.rand((256, 1024, block_mem)).cuda()
-    x = torch.rand((2, 2)).cuda()
+    # x = torch.rand((256, 1024, block_mem)).cuda()
+    # x = torch.rand((2, 2)).cuda()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     rootDir = '/data/Jinwei/Bayesian_QSM/' + opt['weight_dir']
@@ -78,20 +78,20 @@ if __name__ == '__main__':
         D = dipole_kernel(patchSize_padding, voxel_size, B0_dir)
 
     # network
-    # unet3d = Unet(
-    #     input_channels=1, 
-    #     output_channels=2, 
-    #     num_filters=[2**i for i in range(5, 10)],  # or range(3, 8)
-    #     use_deconv=1,
-    #     flag_rsa=opt['flag_rsa']
-    # )
-    unet3d = UnetAg(
+    unet3d = Unet(
         input_channels=1, 
         output_channels=2, 
         num_filters=[2**i for i in range(5, 10)],  # or range(3, 8)
         use_deconv=1,
         flag_rsa=opt['flag_rsa']
-    ) 
+    )
+    # unet3d = UnetAg(
+    #     input_channels=1, 
+    #     output_channels=2, 
+    #     num_filters=[2**i for i in range(5, 10)],  # or range(3, 8)
+    #     use_deconv=1,
+    #     flag_rsa=opt['flag_rsa']
+    # ) 
 
     unet3d.to(device)
 
@@ -105,16 +105,16 @@ if __name__ == '__main__':
     logger = Logger('logs', rootDir, opt['flag_rsa'], opt['case_validation'], opt['case_test'])
 
     # dataloader
-    dataLoader_train = COSMOS_data_loader(
-        split='Train',
-        patchSize=patchSize,
-        extraction_step=extraction_step,
-        voxel_size=voxel_size,
-        case_validation=opt['case_validation'],
-        case_test=opt['case_test'],
-        flag_smv=flag_smv,
-        flag_gen=flag_gen)
-    trainLoader = data.DataLoader(dataLoader_train, batch_size=batch_size, shuffle=True, pin_memory=True)
+    # dataLoader_train = COSMOS_data_loader(
+    #     split='Train',
+    #     patchSize=patchSize,
+    #     extraction_step=extraction_step,
+    #     voxel_size=voxel_size,
+    #     case_validation=opt['case_validation'],
+    #     case_test=opt['case_test'],
+    #     flag_smv=flag_smv,
+    #     flag_gen=flag_gen)
+    # trainLoader = data.DataLoader(dataLoader_train, batch_size=batch_size, shuffle=True, pin_memory=True)
 
     dataLoader_val = COSMOS_data_loader(
         split='Val',
@@ -127,8 +127,8 @@ if __name__ == '__main__':
         flag_gen=flag_gen)
     valLoader = data.DataLoader(dataLoader_val, batch_size=batch_size, shuffle=True, pin_memory=True)
 
-    # dataLoader_train = dataLoader_val
-    # trainLoader = valLoader
+    dataLoader_train = dataLoader_val
+    trainLoader = valLoader
 
     epoch = 0
     gen_iterations = 1
