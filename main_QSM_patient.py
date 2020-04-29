@@ -6,6 +6,7 @@ import torch.optim as optim
 import random
 from torch.utils import data
 from loader.Patient_data_loader import Patient_data_loader
+from loader.Patient_data_loader_all import Patient_data_loader_all
 from models.unet import Unet
 from utils.train import BayesianQSM_train
 from utils.medi import *

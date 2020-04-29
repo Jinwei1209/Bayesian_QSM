@@ -123,6 +123,9 @@ if __name__ == '__main__':
         
             rdfs = (rdfs.to(device, dtype=torch.float) + trans) * scale
             qsms = (qsms.to(device, dtype=torch.float) + trans) * scale
+            # count time of PDI
+            t0 = time.time()
+            
             means = unet3d(rdfs)[:, 0, ...]
             stds = unet3d(rdfs)[:, 1, ...]
             
@@ -131,6 +134,9 @@ if __name__ == '__main__':
             
             patches_means.append(means)
             patches_stds.append(stds)
+
+            time_PDI = time.time() - t0
+            print('GPU time = {0}'.format(time_PDI))
             
         patches_means = np.concatenate(patches_means, axis=0)
         patches_stds = np.concatenate(patches_stds, axis=0)

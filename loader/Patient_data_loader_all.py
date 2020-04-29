@@ -7,15 +7,15 @@ from utils.medi import *
 from utils.data import *
 
 
-# dataloader of 3mm patient with smv
-class Patient_data_loader(data.Dataset):
+# dataloader of 3mm patient with smv, loading all the training cases for transfer learning
+class Patient_data_loader_all(data.Dataset):
     def __init__(
         self,
         dataFolder = '/data/Jinwei/Bayesian_QSM/Data_with_N_std/20190920_MEDI_3mm',
         patientType='ICH'
     ):
         self.patientType = patientType
-        self.list_IDs = [1, 4, 6, 8, 9, 14, 16]
+        self.list_IDs = [1, 4, 6, 9, 14]
         self.dataFolder = dataFolder
         if patientType == 'ICH':
             voxel_size = [0.937500, 0.937500, 2.8]  # hemo cases
@@ -35,14 +35,13 @@ class Patient_data_loader(data.Dataset):
         B0_dir,
         factor
     ):
-        self.RDFs, self.MASKs, self.Data_weights, self.wGs = [], [], [], []
-        list_IDs = [1, 4, 6, 9, 14]
+        self.RDFs, self.Masks, self.Data_weights, self.wGs = [], [], [], []
         for i in range(5):
             print('Loading ID: {0}'.format(self.list_IDs[i]))
             self.patientID = self.patientType + str(self.list_IDs[i])
             self.load_volume(voxel_size, radius, B0_dir, factor)
             self.RDFs.append(self.RDF[0])
-            self.MASKs.append(self.Mask[0])
+            self.Masks.append(self.Mask[0])
             self.Data_weights.append(self.Data_weight[0])
             self.wGs.append(self.wG[0])
 
