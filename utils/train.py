@@ -4,10 +4,11 @@ import torch.optim as optim
 
 from torch.autograd import Variable
 from utils.loss import *
+from utils.medi import *
 
 
 def BayesianQSM_train(
-    unet3d,
+    model,
     input_RDFs,
     in_loss_RDFs,
     QSMs,
@@ -25,7 +26,7 @@ def BayesianQSM_train(
 ):
 
     optimizer.zero_grad()
-    outputs = unet3d(input_RDFs)
+    outputs = model(input_RDFs)
 
     if not flag_l1:
 
@@ -78,3 +79,82 @@ def BayesianQSM_train(
         optimizer.step()
 
         return err.item()
+
+
+def utfi_train(
+    model,
+    optimizer,
+    ifreqs,
+    masks,
+    data_weights,
+    wGs,
+    D,
+    D_smv,
+    lambda_tv,
+    voxel_size,
+    flag_train=1
+):
+    if flag_train:
+        optimizer.zero_grad()
+    loss_l1 = lossL1()
+    loss_l2 = lossL2()
+    outputs = model(ifreqs)
+    device = outputs.get_device()
+
+    # convert to cplx tensors
+    chi_b, chi_l = outputs[:, 0:1, ...], outputs[:, 1:2, ...]
+    chi_b_cplx = torch.zeros(*(chi_b.size()+(2,))).to(device)
+    chi_b_cplx[..., 0] = chi_b
+    chi_l_cplx = torch.zeros(*(chi_l.size()+(2,))).to(device)
+    chi_l_cplx[..., 0] = chi_l
+
+    ifreqs_cplx = torch.zeros(*(ifreqs.size()+(2,))).to(device)
+    ifreqs_cplx[..., 0] = ifreqs
+
+    masks_bg = torch.zeros(*(masks.size()+(2,))).to(device)
+    masks_bg[..., 0] = 1 - masks
+    masks_lc = torch.zeros(*(masks.size()+(2,))).to(device)
+    masks_lc[..., 0] = masks
+
+    fidelity_Ws_cplx = torch.zeros(*(data_weights.size()+(2,))).to(device)
+    fidelity_Ws_cplx[..., 0] = data_weights
+
+    D = np.repeat(D[np.newaxis, np.newaxis, ..., np.newaxis], outputs.size()[0], axis=0)
+    D_cplx = np.concatenate((D, np.zeros(D.shape)), axis=-1)
+    D_cplx = torch.tensor(D_cplx, device=device).float()
+
+    D_smv = np.repeat(D_smv[np.newaxis, np.newaxis, ..., np.newaxis], outputs.size()[0], axis=0)
+    D_smv_cplx = np.concatenate((D_smv, np.zeros(D_smv.shape)), axis=-1)
+    D_smv_cplx = torch.tensor(D_smv_cplx, device=device).float()
+
+    # loss of PDF
+    chi_b_cplx = cplx_mlpy(chi_b_cplx, masks_bg)
+    f_chi_b = torch.ifft(cplx_mlpy(torch.fft(chi_b_cplx, 3), D_cplx), 3)
+    data_term_b = cplx_mlpy(fidelity_Ws_cplx, f_chi_b - ifreqs_cplx)
+    loss_PDF = torch.mean(data_term_b[..., 0]**2)
+
+    # backgroud field removal
+    RDF_cplx = cplx_mlpy(ifreqs_cplx - f_chi_b, masks_lc)
+
+    # fidelity loss of MEDI, no smv
+    # chi_l_cplx = cplx_mlpy(chi_l_cplx, masks_lc)
+    f_chi_l = torch.ifft(cplx_mlpy(torch.fft(chi_l_cplx, 3), D_cplx), 3)
+    data_term_l = cplx_mlpy(fidelity_Ws_cplx, f_chi_l - RDF_cplx)
+    loss_fidelity = torch.mean(data_term_l[..., 0]**2)
+
+    # TV loss
+    grad = torch.zeros(*(chi_l.size()+(3,))).to(device)
+    grad[..., 0] = dxp(chi_l)/voxel_size[0]
+    grad[..., 1] = dyp(chi_l)/voxel_size[1]
+    grad[..., 2] = dzp(chi_l)/voxel_size[2]
+    loss_tv = lambda_tv*torch.mean(torch.abs(wGs*grad))
+
+    # Total loss
+    loss_total = loss_PDF + loss_fidelity + loss_tv
+
+    if flag_train:
+        # Back-propogation
+        loss_total.backward()
+        optimizer.step()
+    return loss_PDF.item(), loss_fidelity.item(), loss_tv.item()
+

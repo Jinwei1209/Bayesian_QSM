@@ -22,7 +22,8 @@ class Unet(nn.Module):
         r=1e-5,
         flag_r_train=0,
         flag_rsa=0,
-        bilateral_infer=0
+        bilateral_infer=0,
+        flag_UTFI=0
     ):
 
         super(Unet, self).__init__()
@@ -35,6 +36,7 @@ class Unet(nn.Module):
         self.renorm = renorm
         self.flag_rsa = flag_rsa
         self.bilateral_infer = bilateral_infer
+        self.flag_UTFI = flag_UTFI
         if self.flag_rsa == 1:
             self.att = rsa1(self.num_filters[-1])
         elif self.flag_rsa == 2:
@@ -106,7 +108,8 @@ class Unet(nn.Module):
                 for idx, up in enumerate(self.upsampling_path2):
                     x2 = up(x2, blocks[-idx-1])
                 x2 = self.last_layer2(x2)
-                x2 = torch.exp(x2)
+                if not self.flag_UTFI:
+                    x2 = torch.exp(x2)
 
                 if self.renorm:
                     device = x2.get_device()

@@ -6,8 +6,9 @@ from utils.files import *
 from utils.medi import *
 from utils.data import *
 
-
-# dataloader of 3mm patient with smv, loading all the training cases for transfer learning
+'''
+dataloader of 3mm patient with smv, loading all the training cases for transfer learning
+'''
 class Patient_data_loader_all(data.Dataset):
     def __init__(
         self,

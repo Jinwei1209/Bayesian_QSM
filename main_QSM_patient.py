@@ -15,16 +15,16 @@ from utils.files import *
 
 if __name__ == '__main__':
 
-    os.environ['CUDA_VISIBLE_DEVICES'] = '3' 
+    os.environ['CUDA_VISIBLE_DEVICES'] = '2' 
     t0 = time.time()
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     rootDir = '/data/Jinwei/Bayesian_QSM'
 
     # dataloader
-    dataLoader_train = Patient_data_loader(patientType='ICH', patientID=8)
+    dataLoader_train = Patient_data_loader(patientType='MS', patientID=7)
 
     # parameters
-    niter = 100
+    niter = 1
     sigma = 0
     Lambda_tv = 1*10**(+1)
     # Lambda_tv = 0

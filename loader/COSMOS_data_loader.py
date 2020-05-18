@@ -6,8 +6,10 @@ from utils.files import *
 from utils.medi import *
 from utils.data import *
 
-# COSMOS dataloader of 3mm slice thickness data with SMV filtering 
-# or 1mm slice thickness data without SMV filtering
+'''
+COSMOS dataloader of 3mm slice thickness data with SMV filtering 
+or 1mm slice thickness data without SMV filtering
+'''
 class COSMOS_data_loader(data.Dataset):
 
     def __init__(

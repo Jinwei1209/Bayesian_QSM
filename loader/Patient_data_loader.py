@@ -6,8 +6,9 @@ from utils.files import *
 from utils.medi import *
 from utils.data import *
 
-
-# dataloader of 3mm patient with smv
+'''
+dataloader of 3mm patient with smv
+'''
 class Patient_data_loader(data.Dataset):
     def __init__(
         self,

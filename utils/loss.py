@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 import numpy as np
-from utils.medi import *
 
+from utils.medi import *
 from utils.data import *
 from utils.files import *
 from utils.test import *
