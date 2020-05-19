@@ -13,6 +13,7 @@ class UTFI_data_loader(data.Dataset):
     def __init__(
         self,
         dataFolder = '/data/Jinwei/Unsupervised_total_field_inversion/data/train',
+        flag_train = 1
     ):
         self.list_IDs = listFolders(dataFolder)
         self.dataFolder = dataFolder
@@ -22,6 +23,7 @@ class UTFI_data_loader(data.Dataset):
         self.voxel_size = [0.75, 0.75, 3.0]
         self.volume_size = [128, 128, 32]
         self.iFreqs, self.Masks, self.Data_weights, self.wGs = [], [], [], []
+        self.flag_train = flag_train
         for i in range(len(self.list_IDs)):
             self.load_volume(self.list_IDs[i])
             print('Loading ID: {0}'.format(self.list_IDs[i]))
@@ -88,22 +90,28 @@ class UTFI_data_loader(data.Dataset):
         self.wG = wG[np.newaxis, np.newaxis, ...]
 
     def __len__(self):
-        return len(self.list_IDs) * 3 * 4 * 2  # * L * W * H
+        if self.flag_train:
+            return len(self.list_IDs) * 3 * 4 * 2  # * L * W * H
+        else:
+            return len(self.list_IDs)
 
     def __getitem__(self, idx):
-        w_step, l_step = 64, 66
-        sub_idx, rmder = idx // (3 * 4 * 2), idx % (3 * 4 * 2)
-        h_idx, rmder2 = rmder // (4 * 3), rmder % (4 * 3)
-        l_idx, w_idx = rmder2 // 4, rmder2 % 4
+        if self.flag_train:
+            w_step, l_step = 64, 66
+            sub_idx, rmder = idx // (3 * 4 * 2), idx % (3 * 4 * 2)
+            h_idx, rmder2 = rmder // (4 * 3), rmder % (4 * 3)
+            l_idx, w_idx = rmder2 // 4, rmder2 % 4
 
-        if h_idx == 0:
-            ifreq = self.iFreqs[sub_idx][:, l_step*l_idx:128+l_step*l_idx, w_step*w_idx:128+w_step*w_idx, 0:32]
-            mask = self.Masks[sub_idx][:, l_step*l_idx:128+l_step*l_idx, w_step*w_idx:128+w_step*w_idx, 0:32]
-            data_weight = self.Data_weights[sub_idx][:, l_step*l_idx:128+l_step*l_idx, w_step*w_idx:128+w_step*w_idx, 0:32]
-            wg = self.wGs[sub_idx][:, l_step*l_idx:128+l_step*l_idx, w_step*w_idx:128+w_step*w_idx, 0:32]
+            if h_idx == 0:
+                ifreq = self.iFreqs[sub_idx][:, l_step*l_idx:128+l_step*l_idx, w_step*w_idx:128+w_step*w_idx, 0:32]
+                mask = self.Masks[sub_idx][:, l_step*l_idx:128+l_step*l_idx, w_step*w_idx:128+w_step*w_idx, 0:32]
+                data_weight = self.Data_weights[sub_idx][:, l_step*l_idx:128+l_step*l_idx, w_step*w_idx:128+w_step*w_idx, 0:32]
+                wg = self.wGs[sub_idx][:, l_step*l_idx:128+l_step*l_idx, w_step*w_idx:128+w_step*w_idx, 0:32]
+            else:
+                ifreq = self.iFreqs[sub_idx][:, l_step*l_idx:128+l_step*l_idx, w_step*w_idx:128+w_step*w_idx, -32:]
+                mask = self.Masks[sub_idx][:, l_step*l_idx:128+l_step*l_idx, w_step*w_idx:128+w_step*w_idx, -32:]
+                data_weight = self.Data_weights[sub_idx][:, l_step*l_idx:128+l_step*l_idx, w_step*w_idx:128+w_step*w_idx, -32:]
+                wg = self.wGs[sub_idx][:, l_step*l_idx:128+l_step*l_idx, w_step*w_idx:128+w_step*w_idx, -32:]
+            return ifreq, mask, data_weight, wg
         else:
-            ifreq = self.iFreqs[sub_idx][:, l_step*l_idx:128+l_step*l_idx, w_step*w_idx:128+w_step*w_idx, -32:]
-            mask = self.Masks[sub_idx][:, l_step*l_idx:128+l_step*l_idx, w_step*w_idx:128+w_step*w_idx, -32:]
-            data_weight = self.Data_weights[sub_idx][:, l_step*l_idx:128+l_step*l_idx, w_step*w_idx:128+w_step*w_idx, -32:]
-            wg = self.wGs[sub_idx][:, l_step*l_idx:128+l_step*l_idx, w_step*w_idx:128+w_step*w_idx, -32:]
-        return ifreq, mask, data_weight, wg
+            return self.iFreqs[idx], self.Masks[idx], self.Data_weights[idx], self.wGs[idx]

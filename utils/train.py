@@ -136,11 +136,20 @@ def utfi_train(
     # backgroud field removal
     RDF_cplx = cplx_mlpy(ifreqs_cplx - f_chi_b, masks_lc)
 
-    # fidelity loss of MEDI, no smv
-    # chi_l_cplx = cplx_mlpy(chi_l_cplx, masks_lc)
+    # # fidelity loss of MEDI, no smv, linear
+    # # chi_l_cplx = cplx_mlpy(chi_l_cplx, masks_lc)
+    # f_chi_l = torch.ifft(cplx_mlpy(torch.fft(chi_l_cplx, 3), D_cplx), 3)
+    # data_term_l = cplx_mlpy(fidelity_Ws_cplx, f_chi_l - RDF_cplx)
+    # loss_fidelity = torch.mean(data_term_l[..., 0]**2)
+
+    # fidelity loss of MEDI, no smv, nonlinear
     f_chi_l = torch.ifft(cplx_mlpy(torch.fft(chi_l_cplx, 3), D_cplx), 3)
-    data_term_l = cplx_mlpy(fidelity_Ws_cplx, f_chi_l - RDF_cplx)
+    expi_f_chi_l = torch.cat((torch.cos(f_chi_l[..., 0:1]), torch.sin(f_chi_l[..., 0:1])), dim=-1)
+    expi_RDF_cplx = torch.cat((torch.cos(RDF_cplx[..., 0:1]), torch.sin(RDF_cplx[..., 0:1])), dim=-1)
+    data_term_l = cplx_mlpy(fidelity_Ws_cplx, expi_f_chi_l - expi_RDF_cplx)
     loss_fidelity = torch.mean(data_term_l[..., 0]**2)
+
+    # fidelity loss of MEDI, smv, nonlinear
 
     # TV loss
     grad = torch.zeros(*(chi_l.size()+(3,))).to(device)

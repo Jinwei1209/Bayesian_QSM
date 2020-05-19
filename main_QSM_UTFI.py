@@ -30,7 +30,7 @@ if __name__ == '__main__':
     # typein parameters
     parser = argparse.ArgumentParser(description='UTFI')
     parser.add_argument('--gpu_id', type=str, default='0')
-    parser.add_argument('--lambda_tv', type=int, default=10)
+    parser.add_argument('--lambda_tv', type=int, default=1e-3)
     opt = {**vars(parser.parse_args())}
     
     lambda_tv = opt['lambda_tv']
@@ -71,6 +71,7 @@ if __name__ == '__main__':
 
     Validation_loss = []
 
+    loss_total_list = []
     while epoch < niter:
         # training phase
         model.train()
@@ -107,7 +108,7 @@ if __name__ == '__main__':
             Validation_loss.append(sum(loss_total_list) / float(len(loss_total_list)))
         
         if Validation_loss[-1] == min(Validation_loss):
-            torch.save(netG_dc.state_dict(), rootDir+'/weights/weight_tv={0}.pt'.format(lambda_tv))
+            torch.save(model.state_dict(), rootDir+'/weights/weight_tv={0}_non.pt'.format(lambda_tv))
         
         epoch += 1
 
