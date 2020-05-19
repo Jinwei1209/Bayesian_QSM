@@ -23,9 +23,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='UTFI')
     parser.add_argument('--gpu_id', type=str, default='1')
     parser.add_argument('--lambda_tv', type=int, default=1e-3)
+    parser.add_argument('--lambda_pdf', type=int, default=10)
     opt = {**vars(parser.parse_args())}
 
     lambda_tv = opt['lambda_tv']
+    lambda_pdf = opt['lambda_pdf']
 
     os.environ['CUDA_VISIBLE_DEVICES'] = opt['gpu_id'] 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -50,7 +52,7 @@ if __name__ == '__main__':
         flag_UTFI=1
     )
     model.to(device)
-    model.load_state_dict(torch.load(rootDir+'/weights/weight_tv={0}.pt'.format(lambda_tv)))
+    model.load_state_dict(torch.load(rootDir+'/weights/weight_pdf={0}_tv={1}.pt'.format(lambda_pdf, lambda_tv)))
     model.eval()
 
     chi_bs, chi_ls = [], []
