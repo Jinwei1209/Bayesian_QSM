@@ -31,9 +31,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='UTFI')
     parser.add_argument('--gpu_id', type=str, default='0')
     parser.add_argument('--lambda_tv', type=int, default=1e-3)
+    parser.add_argument('--lambda_pdf', type=int, default=10)
     opt = {**vars(parser.parse_args())}
     
     lambda_tv = opt['lambda_tv']
+    lambda_pdf = opt['lambda_pdf']
 
     os.environ['CUDA_VISIBLE_DEVICES'] = opt['gpu_id'] 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -82,8 +84,8 @@ if __name__ == '__main__':
             wGs = wGs.to(device, dtype=torch.float)
 
             loss_PDF, loss_fidelity, loss_tv = utfi_train(
-                model, optimizer, ifreqs, masks, data_weights, 
-                wGs, D, D_smv, lambda_tv, voxel_size, flag_train=1)
+                model, optimizer, ifreqs, masks, data_weights, wGs, 
+                D, D_smv, lambda_pdf, lambda_tv, voxel_size, flag_train=1)
 
             print('epochs: [%d/%d], batchs: [%d/%d], time: %ds'
                 % (epoch, niter, idx, num_samples//batch_size, time.time()-t0))
@@ -101,14 +103,14 @@ if __name__ == '__main__':
                 data_weights = data_weights.to(device, dtype=torch.float)
                 wGs = wGs.to(device, dtype=torch.float)
                 loss_PDF, loss_fidelity, loss_tv = utfi_train(
-                    model, optimizer, ifreqs, masks, data_weights, 
-                    wGs, D, D_smv, lambda_tv, voxel_size, flag_train=0)
+                    model, optimizer, ifreqs, masks, data_weights, wGs,
+                    D, D_smv, lambda_pdf, lambda_tv, voxel_size, flag_train=0)
                 loss_total = loss_PDF + loss_fidelity + loss_tv
                 loss_total_list.append(np.asarray(loss_total))
             Validation_loss.append(sum(loss_total_list) / float(len(loss_total_list)))
         
         if Validation_loss[-1] == min(Validation_loss):
-            torch.save(model.state_dict(), rootDir+'/weights/weight_tv={0}_non.pt'.format(lambda_tv))
+            torch.save(model.state_dict(), rootDir+'/weights/weight_pdf={0}_tv={1}.pt'.format(lambda_pdf, lambda_tv))
         
         epoch += 1
 

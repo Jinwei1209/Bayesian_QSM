@@ -90,6 +90,7 @@ def utfi_train(
     wGs,
     D,
     D_smv,
+    lambda_pdf,
     lambda_tv,
     voxel_size,
     flag_train=1
@@ -131,25 +132,26 @@ def utfi_train(
     chi_b_cplx = cplx_mlpy(chi_b_cplx, masks_bg)
     f_chi_b = torch.ifft(cplx_mlpy(torch.fft(chi_b_cplx, 3), D_cplx), 3)
     data_term_b = cplx_mlpy(fidelity_Ws_cplx, f_chi_b - ifreqs_cplx)
-    loss_PDF = torch.mean(data_term_b[..., 0]**2)
+    loss_PDF = lambda_pdf * torch.mean(data_term_b[..., 0]**2)
 
     # backgroud field removal
     RDF_cplx = cplx_mlpy(ifreqs_cplx - f_chi_b, masks_lc)
 
-    # # fidelity loss of MEDI, no smv, linear
-    # # chi_l_cplx = cplx_mlpy(chi_l_cplx, masks_lc)
-    # f_chi_l = torch.ifft(cplx_mlpy(torch.fft(chi_l_cplx, 3), D_cplx), 3)
-    # data_term_l = cplx_mlpy(fidelity_Ws_cplx, f_chi_l - RDF_cplx)
-    # loss_fidelity = torch.mean(data_term_l[..., 0]**2)
-
-    # fidelity loss of MEDI, no smv, nonlinear
+    # fidelity loss of MEDI, no smv, linear
+    # chi_l_cplx = cplx_mlpy(chi_l_cplx, masks_lc)
     f_chi_l = torch.ifft(cplx_mlpy(torch.fft(chi_l_cplx, 3), D_cplx), 3)
-    expi_f_chi_l = torch.cat((torch.cos(f_chi_l[..., 0:1]), torch.sin(f_chi_l[..., 0:1])), dim=-1)
-    expi_RDF_cplx = torch.cat((torch.cos(RDF_cplx[..., 0:1]), torch.sin(RDF_cplx[..., 0:1])), dim=-1)
-    data_term_l = cplx_mlpy(fidelity_Ws_cplx, expi_f_chi_l - expi_RDF_cplx)
+    data_term_l = cplx_mlpy(fidelity_Ws_cplx, f_chi_l - RDF_cplx)
     loss_fidelity = torch.mean(data_term_l[..., 0]**2)
 
+    # # fidelity loss of MEDI, no smv, nonlinear
+    # f_chi_l = torch.ifft(cplx_mlpy(torch.fft(chi_l_cplx, 3), D_cplx), 3)
+    # expi_f_chi_l = torch.cat((torch.cos(f_chi_l[..., 0:1]), torch.sin(f_chi_l[..., 0:1])), dim=-1)
+    # expi_RDF_cplx = torch.cat((torch.cos(RDF_cplx[..., 0:1]), torch.sin(RDF_cplx[..., 0:1])), dim=-1)
+    # data_term_l = cplx_mlpy(fidelity_Ws_cplx, expi_f_chi_l - expi_RDF_cplx)
+    # loss_fidelity = torch.mean(data_term_l[..., 0]**2)
+
     # fidelity loss of MEDI, smv, nonlinear
+    # TO DO
 
     # TV loss
     grad = torch.zeros(*(chi_l.size()+(3,))).to(device)

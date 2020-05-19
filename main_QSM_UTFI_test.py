@@ -50,7 +50,7 @@ if __name__ == '__main__':
         flag_UTFI=1
     )
     model.to(device)
-    model.load_state_dict(torch.load(rootDir+'/weights/weight_tv={0}_non.pt'.format(lambda_tv)))
+    model.load_state_dict(torch.load(rootDir+'/weights/weight_tv={0}.pt'.format(lambda_tv)))
     model.eval()
 
     chi_bs, chi_ls = [], []
