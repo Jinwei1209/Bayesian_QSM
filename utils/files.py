@@ -1,8 +1,8 @@
 import os
 import scipy.io as sio
-# import h5py
-# import nibabel as nib
-# import pydicom
+import h5py
+import nibabel as nib
+import pydicom
 import numpy as np
 import datetime
 
@@ -46,17 +46,17 @@ def save_nii(data, filename, filename_sample=''):
         nib.save(nib.Nifti1Image(data, None, None), filename)
 
 
-# def load_h5(filename, varname='data'):
+def load_h5(filename, varname='data'):
 
-#     with h5py.File(filename, 'r') as f:
-#         data = f[varname][:]
-#     return data
+    with h5py.File(filename, 'r') as f:
+        data = f[varname][:]
+    return data
 
 
-# def save_h5(data, filename, varname='data'):
+def save_h5(data, filename, varname='data'):
 
-#     with h5py.File(filename, 'w') as f:
-#         f.create_dataset(varname, data=data)
+    with h5py.File(filename, 'w') as f:
+        f.create_dataset(varname, data=data)
         
         
 def load_mat(filename, varname='data'):

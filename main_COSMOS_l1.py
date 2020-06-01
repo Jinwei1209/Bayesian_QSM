@@ -158,7 +158,7 @@ if __name__ == '__main__':
             weights = weights.to(device, dtype=torch.float)
 
             loss_l1 = BayesianQSM_train(
-                unet3d=unet3d,
+                model=unet3d,
                 input_RDFs=rdfs,
                 in_loss_RDFs=rdfs,
                 QSMs=qsms,

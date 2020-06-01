@@ -95,7 +95,7 @@ if __name__ == '__main__':
                 sio.savemat(rootDir+'/STD_0.mat', adict)
 
             loss_kl,  loss_expectation = BayesianQSM_train(
-                unet3d=unet3d,
+                model=unet3d,
                 input_RDFs=rdfs,
                 in_loss_RDFs=rdfs-trans*scale,
                 QSMs=0,
