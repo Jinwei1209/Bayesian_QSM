@@ -10,6 +10,7 @@ class VAE(nn.Module):
         input_channels,
         output_channels,
         latent_dim=500,
+        # num_filters=[32, 64, 128, 256, 256],
         num_filters=[64, 64, 64, 64, 64],
         use_deconv=False,
         renorm=0,
@@ -37,15 +38,18 @@ class VAE(nn.Module):
             self.path_encoder.append(self.res_block(input_dim, output_dim, output_dim))
             self.path_encoder.append(self.down_sampling(output_dim, pool))
 
-        self.fc_z_mean = nn.Linear(4*4*2*self.num_filters[-1], self.latent_dim)
-        self.fc_z_logvar = nn.Linear(4*4*2*self.num_filters[-1], self.latent_dim)
-        self.fc_z_reshape = nn.Linear(self.latent_dim, 4*4*2*self.num_filters[-1])
+        # self.fc_z_mean = nn.Linear(4*4*2*self.num_filters[-1], self.latent_dim)
+        # self.fc_z_logvar = nn.Linear(4*4*2*self.num_filters[-1], self.latent_dim)
+        # self.fc_z_reshape = nn.Linear(self.latent_dim, 4*4*2*self.num_filters[-1])
+
+        self.mu_conv = nn.Conv3d(self.num_filters[-1], self.num_filters[-1], 3, 1, 1)
+        self.logvar_conv = nn.Conv3d(self.num_filters[-1], self.num_filters[-1], 3, 1, 1)
 
         for i in range(len(self.num_filters)-2, -1, -1):
             act_and_bn = False if i == len(self.num_filters)-2 else True
-            input_dim, output_dim = self.num_filters[i], self.num_filters[i]
+            input_dim, output_dim = self.num_filters[i+1], self.num_filters[i]
             self.path_decoder.append(self.up_sampling(input_dim, act_and_bn))
-            self.path_decoder.append(self.res_block(input_dim, output_dim, output_dim))
+            self.path_decoder.append(self.res_block(input_dim, output_dim, output_dim, self.use_deconv))
         
         self.last_layer = self.last_block(output_dim, self.output_channels)
         
@@ -53,31 +57,38 @@ class VAE(nn.Module):
         self, 
         input_channels, 
         inter_channels,
-        output_channels
+        output_channels,
+        deconv=False
     ):
         layers = []
-        layers.append(nn.Conv3d(input_channels, inter_channels, 3, 1, 1))
-        layers.append(nn.ReLU(inplace=True))
-        layers.append(nn.Conv3d(inter_channels, output_channels, 3, 1, 1))
+        if deconv:
+            layers.append(nn.ConvTranspose3d(input_channels, inter_channels, 3, 1, 1))
+            layers.append(nn.LeakyReLU(inplace=True))
+            layers.append(nn.ConvTranspose3d(inter_channels, output_channels, 3, 1, 1))
+        else:
+            layers.append(nn.Conv3d(input_channels, inter_channels, 3, 1, 1))
+            layers.append(nn.LeakyReLU(inplace=True))
+            layers.append(nn.Conv3d(inter_channels, output_channels, 3, 1, 1))
         return nn.Sequential(*layers)
 
     def down_sampling(self, output_channels, pool=True):
         layers = []
-        layers.append(nn.ReLU(inplace=True))
+        layers.append(nn.LeakyReLU(inplace=True))
         layers.append(nn.BatchNorm3d(output_channels))
         if pool:
-            layers.append(nn.MaxPool3d(kernel_size=2, stride=2, padding=0))
-        else:
-            layers.append(nn.Flatten())
+            # layers.append(nn.MaxPool3d(kernel_size=2, stride=2, padding=0))
+            layers.append(nn.Conv3d(output_channels, output_channels, 3, 2, 1))
+        # else:
+        #     layers.append(nn.Flatten())
         return nn.Sequential(*layers)
 
     def up_sampling(self, input_channels, act_and_bn=True):
         layers = []
         if act_and_bn:
-            layers.append(nn.ReLU(inplace=True))
+            layers.append(nn.LeakyReLU(inplace=True))
             layers.append(nn.BatchNorm3d(input_channels))
-        else:
-            layers.append(UnFlatten())
+        # else:
+        #     layers.append(UnFlatten())
         if self.use_deconv:
             layers.append(nn.ConvTranspose3d(input_channels, input_channels, 2, 2))
         else:
@@ -86,7 +97,7 @@ class VAE(nn.Module):
 
     def last_block(self, input_channels, output_channels):
         layers = []
-        layers.append(nn.ReLU(inplace=True))
+        layers.append(nn.LeakyReLU(inplace=True))
         layers.append(nn.BatchNorm3d(input_channels))
         layers.append(nn.Conv3d(input_channels, input_channels, 3, 1, 1))
         layers.append(nn.Conv3d(input_channels, output_channels, 1))
@@ -95,19 +106,35 @@ class VAE(nn.Module):
     def encoder(self, x):
         for i in range(len(self.num_filters)):
             x = self.path_encoder[2*i](x) + x
+            # x = self.path_encoder[2*i](x)
+
             x = self.path_encoder[2*i+1](x)
-        return self.fc_z_mean(x), self.fc_z_logvar(x)
+
+        # return self.fc_z_mean(x), self.fc_z_logvar(x)
+        return self.mu_conv(x), self.logvar_conv(x)
 
     def reparameterize(self, mu, logvar):
-        std = torch.exp(0.5*logvar)
-        eps = torch.randn_like(std)
-        return mu + eps*std
+        if self.training:
+            # std = torch.exp(0.5*logvar)
+            # eps = torch.randn_like(std)
+            # z = mu + eps*std
+            std = logvar.mul(0.5).exp_()
+            eps = Variable(std.data.new(std.size()).normal_())
+            z = eps.mul(std).add_(mu)
+        else:
+            z = mu
+        return z
 
     def decoder(self, z):
-        x = self.fc_z_reshape(z)
+        # x = self.fc_z_reshape(z)
+        # x = x.view(-1, self.num_filters[-1], 4, 4, 2)
+        x = z
         for i in range(len(self.num_filters)-1):
             x = self.path_decoder[2*i](x)
+
             x = self.path_decoder[2*i+1](x) + x
+            # x = self.path_decoder[2*i+1](x)
+            
         return self.last_layer(x)
 
     def forward(self, x):
@@ -125,7 +152,7 @@ class VAE(nn.Module):
             x_var = le * x_var * r + (1-le) * (1 - (1-x_var) * beta)
         return x_mu, x_var, mu, logvar
 
-class UnFlatten(nn.Module):
-    def forward(self, input, input_channels=64):
-        return input.view(input.size(0), input_channels, 4, 4, 2)
+# class UnFlatten(nn.Module):
+#     def forward(self, input, input_channels=256):
+#         return input.view(input.size(0), input_channels, 4, 4, 2)
 

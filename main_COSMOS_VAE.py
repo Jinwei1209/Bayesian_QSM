@@ -22,16 +22,18 @@ if __name__ == '__main__':
     # default parameters
     niter = 61
     lr = 1e-3
-    batch_size = 32
+    batch_size = 4
     flag_smv = 1
     flag_gen = 1
-    trans = 0.15
+    trans = 0.4  # 0.15 for PDI
     scale = 3
-    latent_dim = 500
+    latent_dim = 2000  # 500
+    renorm = 1
+    use_deconv = 1
 
     # typein parameters
     parser = argparse.ArgumentParser(description='Deep Learning QSM')
-    parser.add_argument('--gpu_id', type=str, default='0')
+    parser.add_argument('--gpu_id', type=str, default='1')
     parser.add_argument('--flag_rsa', type=int, default=-2)  # -1 for PDI, -2 for VAE
     parser.add_argument('--case_validation', type=int, default=6)
     parser.add_argument('--case_test', type=int, default=7)
@@ -62,10 +64,11 @@ if __name__ == '__main__':
 
     if flag_smv:
         B0_dir = (0, 0, 1)
-        patchSize = (64, 64, 32)  # (64, 64, 21)
+        # patchSize = (64, 64, 32)  # (64, 64, 21)
+        patchSize = (128, 128, 32)
         # patchSize_padding = (64, 64, 128)
         patchSize_padding = patchSize
-        extraction_step = (21, 21, 6)  # (21, 21, 7)
+        extraction_step = (42, 42, 6)  # (21, 21, 6)
         voxel_size = (1, 1, 3)
         D = dipole_kernel(patchSize_padding, voxel_size, B0_dir)
         # S = SMV_kernel(patchSize, voxel_size, radius=5)
@@ -84,7 +87,8 @@ if __name__ == '__main__':
         input_channels=1, 
         output_channels=2,
         latent_dim=latent_dim,
-        renorm=1,
+        use_deconv=use_deconv,
+        renorm=renorm,
         flag_r_train=0
     )
 
@@ -150,11 +154,14 @@ if __name__ == '__main__':
 
             qsms = (qsms.to(device, dtype=torch.float) + trans) * scale
             masks = masks.to(device, dtype=torch.float)
+            qsms = qsms * masks
 
             recon_loss, kl_loss = vae_train(model=vae3d, optimizer=optimizer, x=qsms, mask=masks)
             recon_loss_sum += recon_loss
             kl_loss_sum += kl_loss
             gen_iterations += 1
+
+            time.sleep(1)
 
         scheduler.step(epoch)
 
@@ -167,10 +174,16 @@ if __name__ == '__main__':
                 idx += 1
                 qsms = (qsms.to(device, dtype=torch.float) + trans) * scale
                 masks = masks.to(device, dtype=torch.float)
+                qsms = qsms * masks
+
                 x_mu, x_var, z_mu, z_logvar = vae3d(qsms)
-                recon_loss = 0.5 * torch.sum((x_mu*masks - x*masks)**2 / x_var + torch.log(x_var)*masks)
-                kl_loss = -0.5*torch.sum(1 + z_logvar - z_mu**2 - torch.exp(z_logvar))
-                loss_total = loss_total + (recon_loss + kl_loss)
+                x_factor = torch.prod(torch.tensor(x_mu.size()))
+                z_factor = torch.prod(torch.tensor(z_mu.size()))    
+                # recon_loss = 0.5 * torch.sum((x_mu*masks - qsms*masks)**2 / x_var + torch.log(x_var)*masks)
+                recon_loss = 0.5 * torch.sum((x_mu - qsms)**2 / x_var + torch.log(x_var)) / x_factor
+                # recon_loss = torch.sum((x_mu - qsms)**2) / x_factor
+                kl_loss = -0.5*torch.sum(1 + z_logvar - z_mu**2 - torch.exp(z_logvar)) / z_factor
+                loss_total = loss_total + (recon_loss + kl_loss * 0.1)
 
             print('\n Validation loss: %f \n' % (loss_total / idx))
             Validation_loss.append(loss_total / idx)

@@ -172,9 +172,14 @@ def utfi_train(
 def vae_train(model, optimizer, x, mask):
     optimizer.zero_grad()
     x_mu, x_var, z_mu, z_logvar = model(x)
-    recon_loss = 0.5 * torch.sum((x_mu*mask - x*mask)**2 / x_var + torch.log(x_var)*mask)
-    kl_loss = -0.5*torch.sum(1 + z_logvar - z_mu**2 - torch.exp(z_logvar))
-    total_loss = recon_loss + kl_loss
+    x_factor = torch.prod(torch.tensor(x.size()))
+    z_factor = torch.prod(torch.tensor(z_mu.size()))
+    print(x_factor, z_factor)
+    # recon_loss = 0.5 * torch.sum((x_mu*mask - x*mask)**2 / (x_var + 1e-7) + torch.log(x_var)*mask) / x_factor
+    recon_loss = 0.5 * torch.sum((x_mu - x)**2 / (x_var + 1e-7) + torch.log(x_var)) / x_factor
+    # recon_loss = torch.sum((x_mu - x)**2) / x_factor
+    kl_loss = -0.5*torch.sum(1 + z_logvar - z_mu**2 - torch.exp(z_logvar)) / z_factor
+    total_loss = recon_loss + kl_loss * 0.1
     total_loss.backward()
     optimizer.step()
     return recon_loss.item(), kl_loss.item()
