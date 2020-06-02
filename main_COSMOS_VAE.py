@@ -175,7 +175,6 @@ if __name__ == '__main__':
                 qsms = (qsms.to(device, dtype=torch.float) + trans) * scale
                 masks = masks.to(device, dtype=torch.float)
                 qsms = qsms * masks
-                1
                 
                 x_mu, x_var, z_mu, z_logvar = vae3d(qsms)
                 x_factor = torch.prod(torch.tensor(x_mu.size()))
