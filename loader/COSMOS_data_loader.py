@@ -24,10 +24,12 @@ class COSMOS_data_loader(data.Dataset):
         test_dir = 0,
         split = 'Train',
         flag_smv = 1,
-        flag_gen = 0  # generate rdf from COSMOS data
+        flag_gen = 0,  # generate rdf from COSMOS data
+        flag_crop = 0
     ):
         self.flag_smv = flag_smv
         self.flag_gen = flag_gen
+        self.flag_crop = flag_crop
         if self.flag_smv:
             self.dataFolder = '/data/Jinwei/Bayesian_QSM/Data_with_N_std/20190323_COSMOS_smv_3mm'
             print('Using SMV Filtering')
@@ -207,17 +209,26 @@ class COSMOS_data_loader(data.Dataset):
                     D = dipole_kernel(matrix_size, voxel_size, B0_dir)
                     RDF_dir = np.real(np.fft.ifftn(np.fft.fftn(QSM_dir) * D)).astype(np.float32)
 
-            patches_RDF = RDF_dir[np.newaxis, ...]
-            self.patches_RDFs = patches_RDF[:, np.newaxis, ...]
-            self.patches_MASKs, self.patches_weights, self.patches_QSMs = self.patches_RDFs, self.patches_RDFs, self.patches_RDFs
+            patches_RDF, patches_MASK = RDF_dir[np.newaxis, ...], Mask_dir[np.newaxis, ...]
+            patches_QSM, patches_weight = QSM_dir[np.newaxis, ...], np.ones(patches_RDF.shape)
+            if self.flag_crop:
+                self.patches_RDFs = patches_RDF[:, np.newaxis, 30:190, 30:190, :]
+                self.patches_MASKs = patches_MASK[:, np.newaxis, 30:190, 30:190, :]
+                self.patches_QSMs = patches_QSM[:, np.newaxis, 30:190, 30:190, :]
+                self.patches_weights = patches_weight[:, np.newaxis, 30:190, 30:190, :]
+            else:
+                self.patches_RDFs = patches_RDF[:, np.newaxis, ...]
+                self.patches_MASKs = patches_MASK[:, np.newaxis, ...]
+                self.patches_QSMs = patches_QSM[:, np.newaxis, ...]
+                self.patches_weights = patches_weight[:, np.newaxis, ...]
             self.num_samples = len(self.patches_RDFs)
-            self.volSize = RDF_dir.shape
+            self.volSize = patches_RDF.shape[2:]
 
     def __len__(self):
         return self.num_samples
 
     def __getitem__(self, idx):
-        return self.patches_RDFs[idx], self.patches_MASKs[idx], self.patches_RDFs[idx], self.patches_QSMs[idx]
+        return self.patches_RDFs[idx], self.patches_MASKs[idx], self.patches_weights[idx], self.patches_QSMs[idx]
 
         
 
