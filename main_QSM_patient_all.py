@@ -37,7 +37,7 @@ if __name__ == '__main__':
     parser.add_argument('--gpu_id', type=str, default='0')
     parser.add_argument('--lambda_tv', type=int, default=10)
     parser.add_argument('--flag_test', type=int, default=0)
-    parser.add_argument('--flag_r_train', type=int, default=1)
+    parser.add_argument('--flag_r_train', type=int, default=0)
     parser.add_argument('--epoch_test', type=int, default=10)
     parser.add_argument('--patientID', type=int, default=8)
     opt = {**vars(parser.parse_args())}
@@ -167,7 +167,7 @@ if __name__ == '__main__':
             # unet3d.load_state_dict(torch.load(rootDir+'/weights_VI/weights_lambda_tv={0}_{1}.pt'.format(Lambda_tv, epoch_test)))
             # unet3d.load_state_dict(torch.load(rootDir+'/weights_VI/lambda=10/weights_{0}.pt'.format(epoch_test)))
             weights_dict = torch.load(rootDir+'/weights_VI/weights_lambda_tv={0}.pt'.format(Lambda_tv))
-            # weights_dict['r'] = (torch.ones(1)*1e-3).to(device)
+            # weights_dict['r'] = (torch.ones(1)*r).to(device)
             unet3d.load_state_dict(weights_dict)
         else:
             unet3d.load_state_dict(torch.load(rootDir+'/weights_VI/weights_no_prior_{0}.pt'.format(epoch_test)))
