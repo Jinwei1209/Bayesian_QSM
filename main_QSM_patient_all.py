@@ -30,6 +30,7 @@ if __name__ == '__main__':
     trans = 0.15
     scale = 3
     K = 5  # 5 default
+    r = 3e-3
 
     # typein parameters
     parser = argparse.ArgumentParser(description='Deep Learning QSM')
@@ -61,7 +62,6 @@ if __name__ == '__main__':
         use_deconv=1,
         use_deconv2=1,
         renorm=1,
-        r=1e-3,
         flag_r_train=flag_r_train
     )
     # unet3d = Unet(
@@ -89,7 +89,9 @@ if __name__ == '__main__':
         D = dipole_kernel(volume_size, voxel_size, B0_dir)
         D = np.real(S * D)
 
-        unet3d.load_state_dict(torch.load(rootDir+'/weight/weights_sigma={0}_smv={1}_mv8'.format(sigma, 1)+'.pt'))
+        weights_dict = torch.load(rootDir+'/weight/weights_sigma={0}_smv={1}_mv8'.format(sigma, 1)+'.pt')
+        weights_dict['r'] = (torch.ones(1)*r).to(device)
+        unet3d.load_state_dict(weights_dict)
         # optimizer
         optimizer = optim.Adam(unet3d.parameters(), lr=lr, betas=(0.5, 0.999))
 
