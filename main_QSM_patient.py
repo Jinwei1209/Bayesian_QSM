@@ -21,11 +21,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Deep Learning QSM')
     parser.add_argument('--gpu_id', type=str, default='0')
     parser.add_argument('--lambda_tv', type=int, default=10)
+    parser.add_argument('--flag_r_train', type=int, default=0)
     parser.add_argument('--patientID', type=int, default=8)
     opt = {**vars(parser.parse_args())}
 
     Lambda_tv = opt['lambda_tv']
     patientID = opt['patientID']
+    flag_r_train = opt['flag_r_train']
 
     os.environ['CUDA_VISIBLE_DEVICES'] = opt['gpu_id'] 
     t0 = time.time()
@@ -44,6 +46,7 @@ if __name__ == '__main__':
     trans = 0.15
     scale = 3
     K = 5  # 5 default
+    r = 3e-3
 
     voxel_size = dataLoader_train.voxel_size
     volume_size = dataLoader_train.volume_size
@@ -62,7 +65,7 @@ if __name__ == '__main__':
         use_deconv=1,
         use_deconv2=1,
         renorm=1,
-        flag_r_train=1
+        flag_r_train=flag_r_train
     )
     # unet3d = Unet(
     #     input_channels=1, 
@@ -71,7 +74,9 @@ if __name__ == '__main__':
     #     flag_rsa=2
     # )
     unet3d.to(device)
-    unet3d.load_state_dict(torch.load(rootDir+'/weight/weights_sigma={0}_smv={1}_mv8'.format(sigma, 1)+'.pt'))
+    weights_dict = torch.load(rootDir+'/weight/weights_sigma={0}_smv={1}_mv8'.format(sigma, 1)+'.pt')
+    weights_dict['r'] = (torch.ones(1)*r).to(device)
+    unet3d.load_state_dict(weights_dict)
     unet3d.eval()
 
     # optimizer
