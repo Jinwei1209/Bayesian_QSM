@@ -104,7 +104,7 @@ if __name__ == '__main__':
                 adict['STD'] = STD
                 sio.savemat(rootDir+'/STD_0.mat', adict)
 
-            loss_kl,  loss_expectation = BayesianQSM_train(
+            loss_kl,  loss_tv, loss_expectation = BayesianQSM_train(
                 model=unet3d,
                 input_RDFs=rdfs,
                 in_loss_RDFs=rdfs-trans*scale,
@@ -121,8 +121,8 @@ if __name__ == '__main__':
                 K=K
             )
 
-            print('epochs: [%d/%d], time: %ds, Lambda_tv: %f, KL_loss: %f, Expectation_loss: %f, r: %f'
-                % (epoch, niter, time.time()-t0, Lambda_tv, loss_kl, loss_expectation, unet3d.r))
+            print('epochs: [%d/%d], time: %ds, Lambda_tv: %f, Entropy loss: %2f, TV_loss: %2f, Expectation_loss: %2f, r: %f'
+                % (epoch, niter, time.time()-t0, Lambda_tv, loss_kl, loss_tv, loss_expectation, unet3d.r))
 
     means = unet3d(rdfs)[:, 0, ...]
     stds = unet3d(rdfs)[:, 1, ...]

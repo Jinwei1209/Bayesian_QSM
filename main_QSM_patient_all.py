@@ -3,6 +3,7 @@ import time
 import numpy as np 
 import torch
 import torch.optim as optim
+import torch.nn as nn
 import random
 import argparse
 
@@ -35,6 +36,7 @@ if __name__ == '__main__':
     parser.add_argument('--gpu_id', type=str, default='0')
     parser.add_argument('--lambda_tv', type=int, default=10)
     parser.add_argument('--flag_test', type=int, default=0)
+    parser.add_argument('--flag_r_train', type=int, default=1)
     parser.add_argument('--epoch_test', type=int, default=10)
     parser.add_argument('--patientID', type=int, default=8)
     opt = {**vars(parser.parse_args())}
@@ -45,6 +47,7 @@ if __name__ == '__main__':
     flag_test = opt['flag_test']
     epoch_test = opt['epoch_test']
     Lambda_tv = opt['lambda_tv']
+    flag_r_train = opt['flag_r_train']
 
     os.environ['CUDA_VISIBLE_DEVICES'] = opt['gpu_id'] 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -58,7 +61,8 @@ if __name__ == '__main__':
         use_deconv=1,
         use_deconv2=1,
         renorm=1,
-        flag_r_train=1
+        r=1e-3,
+        flag_r_train=flag_r_train
     )
     # unet3d = Unet(
     #     input_channels=1, 
@@ -101,7 +105,7 @@ if __name__ == '__main__':
                 weights = weights.to(device, dtype=torch.float)
                 wGs = wGs.to(device, dtype=torch.float)
 
-                loss_kl,  loss_expectation = BayesianQSM_train(
+                loss_kl,  loss_tv, loss_expectation = BayesianQSM_train(
                     model=unet3d,
                     input_RDFs=rdfs,
                     in_loss_RDFs=rdfs-trans*scale,
@@ -119,7 +123,7 @@ if __name__ == '__main__':
                 )
 
                 print('epochs: [%d/%d], time: %ds, Lambda_tv: %f, KL_loss: %f, Expectation_loss: %f, r: %f'
-                    % (epoch, niter, time.time()-t0, Lambda_tv, loss_kl, loss_expectation, unet3d.r))
+                    % (epoch, niter, time.time()-t0, Lambda_tv, loss_kl+loss_tv, loss_expectation, unet3d.r))
 
             unet3d.eval()
             for idx, (rdfs, masks, weights, wGs) in enumerate(valLoader):
@@ -160,7 +164,9 @@ if __name__ == '__main__':
         if Lambda_tv:
             # unet3d.load_state_dict(torch.load(rootDir+'/weights_VI/weights_lambda_tv={0}_{1}.pt'.format(Lambda_tv, epoch_test)))
             # unet3d.load_state_dict(torch.load(rootDir+'/weights_VI/lambda=10/weights_{0}.pt'.format(epoch_test)))
-            unet3d.load_state_dict(torch.load(rootDir+'/weights_VI/weights_lambda_tv={0}.pt'.format(Lambda_tv)))
+            weights_dict = torch.load(rootDir+'/weights_VI/weights_lambda_tv={0}.pt'.format(Lambda_tv))
+            # weights_dict['r'] = (torch.ones(1)*1e-3).to(device)
+            unet3d.load_state_dict(weights_dict)
         else:
             unet3d.load_state_dict(torch.load(rootDir+'/weights_VI/weights_no_prior_{0}.pt'.format(epoch_test)))
         unet3d.eval()
@@ -185,9 +191,9 @@ if __name__ == '__main__':
             loss_expectation, loss_tv = loss_Expectation(
                 outputs=outputs, QSMs=0, in_loss_RDFs=rdfs-trans*scale, fidelity_Ws=weights, 
                 gradient_Ws=wGs, D=D, flag_COSMOS=0, Lambda_tv=Lambda_tv, voxel_size=voxel_size, K=K)
-            loss_total = (loss_kl + loss_expectation + loss_tv).item()
-            print('KL Divergence = {0}'.format(loss_total))
-
+            print('r: %f, Entropy loss: %2f, TV_loss: %2f, Expectation_loss: %2f'
+                % (unet3d.r, loss_kl.item(), loss_tv.item(), loss_expectation.item()))
+        
         if Lambda_tv:
             adict = {}
             adict['QSM'] = QSM

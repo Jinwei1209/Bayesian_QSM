@@ -47,7 +47,7 @@ def BayesianQSM_train(
         if flag_COSMOS:
             return loss_kl.item(), loss_expectation.item()
         else:
-            return (loss_kl+loss_tv).item(), loss_expectation.item()
+            return loss_kl.item(), loss_tv.item(), loss_expectation.item()
 
     else:
         # l1 loss
