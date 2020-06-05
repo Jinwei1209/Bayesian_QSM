@@ -25,7 +25,7 @@ if __name__ == '__main__':
     # default parameters
     flag_smv = 1
     flag_gen = 1
-    flag_crop = 0
+    flag_crop = 1
     trans = 0.15
     scale = 3
     K = 1  # number of samples in MC

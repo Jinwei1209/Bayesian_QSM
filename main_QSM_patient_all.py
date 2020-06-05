@@ -67,12 +67,17 @@ if __name__ == '__main__':
     #     flag_rsa=2
     # )
     unet3d.to(device)
+    val_loss = []
 
     # training phase
     if not flag_test:
 
         # dataloader
         dataLoader_train = Patient_data_loader_all(patientType='ICH')
+        trainLoader = data.DataLoader(dataLoader_train, batch_size=batch_size, shuffle=True)
+
+        dataLoader_val = Patient_data_loader(patientType='ICH', patientID=14)
+        valLoader = data.DataLoader(dataLoader_val, batch_size=batch_size, shuffle=True)
 
         voxel_size = dataLoader_train.voxel_size
         volume_size = dataLoader_train.volume_size
@@ -80,10 +85,7 @@ if __name__ == '__main__':
         D = dipole_kernel(volume_size, voxel_size, B0_dir)
         D = np.real(S * D)
 
-        trainLoader = data.DataLoader(dataLoader_train, batch_size=batch_size, shuffle=True)
-
         unet3d.load_state_dict(torch.load(rootDir+'/weight/weights_sigma={0}_smv={1}_mv8'.format(sigma, 1)+'.pt'))
-        unet3d.train()
         # optimizer
         optimizer = optim.Adam(unet3d.parameters(), lr=lr, betas=(0.5, 0.999))
 
@@ -91,6 +93,7 @@ if __name__ == '__main__':
         while epoch < niter:
             epoch += 1
 
+            unet3d.train()
             for idx, (rdfs, masks, weights, wGs) in enumerate(trainLoader):
 
                 rdfs = (rdfs.to(device, dtype=torch.float) + trans) * scale
@@ -117,27 +120,52 @@ if __name__ == '__main__':
 
                 print('epochs: [%d/%d], time: %ds, Lambda_tv: %f, KL_loss: %f, Expectation_loss: %f, r: %f'
                     % (epoch, niter, time.time()-t0, Lambda_tv, loss_kl, loss_expectation, unet3d.r))
+
+            unet3d.eval()
+            for idx, (rdfs, masks, weights, wGs) in enumerate(valLoader):
+
+                rdfs = (rdfs.to(device, dtype=torch.float) + trans) * scale
+                masks = masks.to(device, dtype=torch.float)
+                weights = weights.to(device, dtype=torch.float)
+                wGs = wGs.to(device, dtype=torch.float)
+
+                # calculate KLD
+                outputs = unet3d(rdfs)
+                loss_kl = loss_KL(outputs=outputs, QSMs=0, flag_COSMOS=0, sigma_sq=0)
+                loss_expectation, loss_tv = loss_Expectation(
+                    outputs=outputs, QSMs=0, in_loss_RDFs=rdfs-trans*scale, fidelity_Ws=weights, 
+                    gradient_Ws=wGs, D=D, flag_COSMOS=0, Lambda_tv=Lambda_tv, voxel_size=voxel_size, K=K)
+                loss_total = (loss_kl + loss_expectation + loss_tv).item()
+                print('KL Divergence on validation set = {0}'.format(loss_total))
             
-            if epoch % 10 == 0:
+            val_loss.append(loss_total)
+            if val_loss[-1] == min(val_loss):
                 if Lambda_tv:
-                    torch.save(unet3d.state_dict(), rootDir+'/weights_VI/weights_lambda_tv={0}_{1}.pt'.format(Lambda_tv, epoch))
+                    torch.save(unet3d.state_dict(), rootDir+'/weights_VI/weights_lambda_tv={0}.pt'.format(Lambda_tv))
                 else:
-                    torch.save(unet3d.state_dict(), rootDir+'/weights_VI/weights_no_prior_{0}.pt'.format(epoch))
+                    torch.save(unet3d.state_dict(), rootDir+'/weights_VI/weights_no_prior.pt')
 
     # test phase
     else:
         # dataloader
-        dataLoader_train = Patient_data_loader(patientType='ICH', patientID=opt['patientID'])
-        trainLoader = data.DataLoader(dataLoader_train, batch_size=batch_size, shuffle=True)
+        dataLoader_test = Patient_data_loader(patientType='ICH', patientID=opt['patientID'])
+        testLoader = data.DataLoader(dataLoader_test, batch_size=batch_size, shuffle=True)
+
+        voxel_size = dataLoader_test.voxel_size
+        volume_size = dataLoader_test.volume_size
+        S = SMV_kernel(volume_size, voxel_size, radius=5)
+        D = dipole_kernel(volume_size, voxel_size, B0_dir)
+        D = np.real(S * D)
 
         if Lambda_tv:
             # unet3d.load_state_dict(torch.load(rootDir+'/weights_VI/weights_lambda_tv={0}_{1}.pt'.format(Lambda_tv, epoch_test)))
-            unet3d.load_state_dict(torch.load(rootDir+'/weights_VI/lambda=10/weights_{0}.pt'.format(epoch_test)))
+            # unet3d.load_state_dict(torch.load(rootDir+'/weights_VI/lambda=10/weights_{0}.pt'.format(epoch_test)))
+            unet3d.load_state_dict(torch.load(rootDir+'/weights_VI/weights_lambda_tv={0}.pt'.format(Lambda_tv)))
         else:
             unet3d.load_state_dict(torch.load(rootDir+'/weights_VI/weights_no_prior_{0}.pt'.format(epoch_test)))
         unet3d.eval()
 
-        for idx, (rdfs, masks, weights, wGs) in enumerate(trainLoader):
+        for idx, (rdfs, masks, weights, wGs) in enumerate(testLoader):
 
             print('Saving test data')
 
@@ -146,10 +174,19 @@ if __name__ == '__main__':
             weights = weights.to(device, dtype=torch.float)
             wGs = wGs.to(device, dtype=torch.float)
 
-            means = unet3d(rdfs)[:, 0, ...]
-            stds = unet3d(rdfs)[:, 1, ...]
+            outputs = unet3d(rdfs)
+            means = outputs[:, 0, ...]
+            stds = outputs[:, 1, ...]
             QSM = np.squeeze(np.asarray(means.cpu().detach()))
             STD = np.squeeze(np.asarray(stds.cpu().detach()))
+
+            # calculate KLD
+            loss_kl = loss_KL(outputs=outputs, QSMs=0, flag_COSMOS=0, sigma_sq=0)
+            loss_expectation, loss_tv = loss_Expectation(
+                outputs=outputs, QSMs=0, in_loss_RDFs=rdfs-trans*scale, fidelity_Ws=weights, 
+                gradient_Ws=wGs, D=D, flag_COSMOS=0, Lambda_tv=Lambda_tv, voxel_size=voxel_size, K=K)
+            loss_total = (loss_kl + loss_expectation + loss_tv).item()
+            print('KL Divergence = {0}'.format(loss_total))
 
         if Lambda_tv:
             adict = {}

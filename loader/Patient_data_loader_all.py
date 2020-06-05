@@ -16,7 +16,9 @@ class Patient_data_loader_all(data.Dataset):
         patientType='ICH'
     ):
         self.patientType = patientType
-        self.list_IDs = [1, 4, 6, 9, 14]
+        # self.list_IDs = [1, 4, 6, 9, 14]
+        self.list_IDs = [1, 4, 6, 9]
+        self.num_subs = len(self.list_IDs)
         self.dataFolder = dataFolder
         if patientType == 'ICH':
             voxel_size = [0.937500, 0.937500, 2.8]  # hemo cases
@@ -37,7 +39,7 @@ class Patient_data_loader_all(data.Dataset):
         factor
     ):
         self.RDFs, self.Masks, self.Data_weights, self.wGs = [], [], [], []
-        for i in range(5):
+        for i in range(self.num_subs):
             print('Loading ID: {0}'.format(self.list_IDs[i]))
             self.patientID = self.patientType + str(self.list_IDs[i])
             self.load_volume(voxel_size, radius, B0_dir, factor)
@@ -92,7 +94,7 @@ class Patient_data_loader_all(data.Dataset):
         self.wG = wG[np.newaxis, np.newaxis, ...]
 
     def __len__(self):
-        return 5
+        return self.num_subs
 
     def __getitem__(self, idx):
         return self.RDFs[idx], self.Masks[idx], self.Data_weights[idx], self.wGs[idx]
