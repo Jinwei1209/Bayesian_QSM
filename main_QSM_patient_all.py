@@ -39,7 +39,8 @@ if __name__ == '__main__':
     parser.add_argument('--patientID', type=int, default=8)
     opt = {**vars(parser.parse_args())}
     # run: (700 the best)
-    # python main_QSM_patient_all.py --gpu_id=2 --lambda_tv=10 --flag_test=1 --epoch_test=700 --patientID=16
+    # python main_QSM_patient_all.py --lambda_tv=10 --flag_test=1 --epoch_test=700 --patientID=16 (or 8)
+    # python main_QSM_patient_all.py --lambda_tv=10 --flag_test=1 --epoch_test=400 (300 too good, no shadow at all) --patientID=8
 
     flag_test = opt['flag_test']
     epoch_test = opt['epoch_test']
@@ -131,7 +132,7 @@ if __name__ == '__main__':
 
         if Lambda_tv:
             # unet3d.load_state_dict(torch.load(rootDir+'/weights_VI/weights_lambda_tv={0}_{1}.pt'.format(Lambda_tv, epoch_test)))
-            unet3d.load_state_dict(torch.load(rootDir+'/weights_VI/lambda=10_/weights_{0}.pt'.format(epoch_test)))
+            unet3d.load_state_dict(torch.load(rootDir+'/weights_VI/lambda=10/weights_{0}.pt'.format(epoch_test)))
         else:
             unet3d.load_state_dict(torch.load(rootDir+'/weights_VI/weights_no_prior_{0}.pt'.format(epoch_test)))
         unet3d.eval()

@@ -4,6 +4,8 @@ import numpy as np
 import torch
 import torch.optim as optim
 import random
+import argparse
+
 from torch.utils import data
 from loader.Patient_data_loader import Patient_data_loader
 from loader.Patient_data_loader_all import Patient_data_loader_all
@@ -15,19 +17,27 @@ from utils.files import *
 
 if __name__ == '__main__':
 
-    os.environ['CUDA_VISIBLE_DEVICES'] = '2' 
+    # typein parameters
+    parser = argparse.ArgumentParser(description='Deep Learning QSM')
+    parser.add_argument('--gpu_id', type=str, default='0')
+    parser.add_argument('--lambda_tv', type=int, default=10)
+    parser.add_argument('--patientID', type=int, default=8)
+    opt = {**vars(parser.parse_args())}
+
+    Lambda_tv = opt['lambda_tv']
+    patientID = opt['patientID']
+
+    os.environ['CUDA_VISIBLE_DEVICES'] = opt['gpu_id'] 
     t0 = time.time()
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     rootDir = '/data/Jinwei/Bayesian_QSM'
 
     # dataloader
-    dataLoader_train = Patient_data_loader(patientType='MS', patientID=7)
+    dataLoader_train = Patient_data_loader(patientType='ICH', patientID=patientID)
 
     # parameters
-    niter = 1
+    niter = 100
     sigma = 0
-    Lambda_tv = 1*10**(+1)
-    # Lambda_tv = 0
     lr = 1e-3
     batch_size = 1
     B0_dir = (0, 0, 1)

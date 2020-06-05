@@ -38,7 +38,7 @@ if __name__ == '__main__':
     extraction_step = (42, 42, 42)
 
     # parameters for adversarial noise generation
-    niter = 40  # number of iterations to generate ad noise
+    niter = 60  # number of iterations to generate adv noise
     Lambda = 1e+2  # 1e+2 best for now
     gamma = 0.9
     eta = 10
