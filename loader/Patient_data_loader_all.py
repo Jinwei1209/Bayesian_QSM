@@ -16,18 +16,21 @@ class Patient_data_loader_all(data.Dataset):
         patientType='ICH'
     ):
         self.patientType = patientType
-        # self.list_IDs = [1, 4, 6, 9, 14]
-        self.list_IDs = [1, 4, 6, 9]
-        self.num_subs = len(self.list_IDs)
         self.dataFolder = dataFolder
         if patientType == 'ICH':
+            print('Loading ICH data')
+            self.list_IDs = [1, 4, 6, 9]
             voxel_size = [0.937500, 0.937500, 2.8]  # hemo cases
             factor = 3.9034  # 3.9034 for hemo cases
-        else:
+        elif patientType == 'MS_old':
+            print('Loading old MS data')
+            self.list_IDs = range(1, 7)
             voxel_size = [0.9376000, 0.9376000, 3.0]  # ms and ms_ cases
             factor = 3.85885  # 3.85885 for ms cases
+            self.dataFolder += '/MS_train'
         radius = 5
         B0_dir = [0, 0, 1]
+        self.num_subs = len(self.list_IDs)
         self.voxel_size = voxel_size
         self.load_all_volume(voxel_size, radius, B0_dir, factor)
 

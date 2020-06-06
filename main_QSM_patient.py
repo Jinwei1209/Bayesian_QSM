@@ -22,10 +22,12 @@ if __name__ == '__main__':
     parser.add_argument('--gpu_id', type=str, default='0')
     parser.add_argument('--lambda_tv', type=int, default=10)
     parser.add_argument('--flag_r_train', type=int, default=0)
+    parser.add_argument('--patient_type', type=str, default='ICH')  # or MS_old, MS_new
     parser.add_argument('--patientID', type=int, default=8)
     opt = {**vars(parser.parse_args())}
 
     Lambda_tv = opt['lambda_tv']
+    patient_type = opt['patient_type']
     patientID = opt['patientID']
     flag_r_train = opt['flag_r_train']
 
@@ -35,7 +37,7 @@ if __name__ == '__main__':
     rootDir = '/data/Jinwei/Bayesian_QSM'
 
     # dataloader
-    dataLoader_train = Patient_data_loader(patientType='ICH', patientID=patientID)
+    dataLoader_train = Patient_data_loader(patientType=patient_type, patientID=patientID)
 
     # parameters
     niter = 100

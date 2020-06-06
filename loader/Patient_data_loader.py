@@ -20,9 +20,16 @@ class Patient_data_loader(data.Dataset):
         self.patientID = patientType + str(patientID)
         self.dataFolder = dataFolder
         if patientType == 'ICH':
+            print('Loading ICH data')
             voxel_size = [0.937500, 0.937500, 2.8]  # hemo cases
             factor = 3.9034  # 3.9034 for hemo cases
-        else:
+        elif patientType == 'MS_old':
+            print('Loading old MS data')
+            voxel_size = [0.9376000, 0.9376000, 3.0]  # ms and ms_ cases
+            factor = 3.85885  # 3.85885 for ms cases
+            self.dataFolder += '/MS_train'
+        elif patientType == 'MS_new':
+            print('Loading new MS data')
             voxel_size = [0.9376000, 0.9376000, 3.0]  # ms and ms_ cases
             factor = 3.85885  # 3.85885 for ms cases
         radius = 5
