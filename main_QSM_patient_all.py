@@ -38,16 +38,11 @@ if __name__ == '__main__':
     parser.add_argument('--lambda_tv', type=int, default=10)
     parser.add_argument('--flag_test', type=int, default=0)
     parser.add_argument('--flag_r_train', type=int, default=0)
-    parser.add_argument('--epoch_test', type=int, default=10)
     parser.add_argument('--patient_type', type=str, default='ICH')  # or MS_old, MS_new
-    parser.add_argument('--patientID', type=int, default=8)
+    parser.add_argument('--patientID', type=int, default=8)  # for test
     opt = {**vars(parser.parse_args())}
-    # run: (700 the best)
-    # python main_QSM_patient_all.py --lambda_tv=10 --flag_test=1 --epoch_test=700 --patientID=16 (or 8)
-    # python main_QSM_patient_all.py --lambda_tv=10 --flag_test=1 --epoch_test=400 (300 too good, no shadow at all) --patientID=8
 
     flag_test = opt['flag_test']
-    epoch_test = opt['epoch_test']
     Lambda_tv = opt['lambda_tv']
     flag_r_train = opt['flag_r_train']
     patient_type = opt['patient_type']
@@ -55,7 +50,7 @@ if __name__ == '__main__':
     if patient_type == 'ICH':
         valID = 14
         folder_weights_VI = '/weights_VI'
-    elif patient_type == 'MS_old' or 'MS_new'
+    elif patient_type == 'MS_old' or 'MS_new':
         valID = 7
         folder_weights_VI = '/weights_VI2'
 
@@ -173,13 +168,11 @@ if __name__ == '__main__':
         D = np.real(S * D)
 
         if Lambda_tv:
-            # unet3d.load_state_dict(torch.load(rootDir+'/weights_VI/weights_lambda_tv={0}_{1}.pt'.format(Lambda_tv, epoch_test)))
-            # unet3d.load_state_dict(torch.load(rootDir+'/weights_VI/lambda=10/weights_{0}.pt'.format(epoch_test)))
             weights_dict = torch.load(rootDir+folder_weights_VI+'/weights_lambda_tv={0}.pt'.format(Lambda_tv))
             # weights_dict['r'] = (torch.ones(1)*r).to(device)
             unet3d.load_state_dict(weights_dict)
         else:
-            unet3d.load_state_dict(torch.load(rootDir+folder_weights_VI+'/weights_no_prior_{0}.pt'.format(epoch_test)))
+            unet3d.load_state_dict(torch.load(rootDir+folder_weights_VI+'/weights_no_prior.pt'))
         unet3d.eval()
 
         for idx, (rdfs, masks, weights, wGs) in enumerate(testLoader):
