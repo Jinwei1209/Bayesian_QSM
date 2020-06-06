@@ -87,11 +87,11 @@ if __name__ == '__main__':
         dataLoader_val = Patient_data_loader(patientType=patient_type, patientID=valID)
         valLoader = data.DataLoader(dataLoader_val, batch_size=batch_size, shuffle=True)
 
-        voxel_size = dataLoader_train.voxel_size
-        volume_size = dataLoader_train.volume_size
+        voxel_size = dataLoader_val.voxel_size
+        volume_size = dataLoader_val.volume_size
         S = SMV_kernel(volume_size, voxel_size, radius=5)
         D = dipole_kernel(volume_size, voxel_size, B0_dir)
-        D = np.real(S * D)
+        D_val = np.real(S * D)
 
         weights_dict = torch.load(rootDir+'/weight/weights_sigma={0}_smv={1}_mv8'.format(sigma, 1)+'.pt')
         weights_dict['r'] = (torch.ones(1)*r).to(device)
@@ -104,7 +104,7 @@ if __name__ == '__main__':
             epoch += 1
 
             unet3d.train()
-            for idx, (rdfs, masks, weights, wGs) in enumerate(trainLoader):
+            for idx, (rdfs, masks, weights, wGs, D) in enumerate(trainLoader):
 
                 rdfs = (rdfs.to(device, dtype=torch.float) + trans) * scale
                 masks = masks.to(device, dtype=torch.float)
@@ -119,7 +119,7 @@ if __name__ == '__main__':
                     Masks=masks,
                     fidelity_Ws=weights,
                     gradient_Ws=wGs,
-                    D=D,
+                    D=np.asarray(D[0, ...]),
                     flag_COSMOS=0,
                     optimizer=optimizer,
                     sigma_sq=0,
@@ -144,7 +144,7 @@ if __name__ == '__main__':
                 loss_kl = loss_KL(outputs=outputs, QSMs=0, flag_COSMOS=0, sigma_sq=0)
                 loss_expectation, loss_tv = loss_Expectation(
                     outputs=outputs, QSMs=0, in_loss_RDFs=rdfs-trans*scale, fidelity_Ws=weights, 
-                    gradient_Ws=wGs, D=D, flag_COSMOS=0, Lambda_tv=Lambda_tv, voxel_size=voxel_size, K=K)
+                    gradient_Ws=wGs, D=D_val, flag_COSMOS=0, Lambda_tv=Lambda_tv, voxel_size=voxel_size, K=K)
                 loss_total = (loss_kl + loss_expectation + loss_tv).item()
                 print('KL Divergence on validation set = {0}'.format(loss_total))
             

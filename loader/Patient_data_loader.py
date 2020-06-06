@@ -64,7 +64,7 @@ class Patient_data_loader(data.Dataset):
         D = dipole_kernel(volume_size, voxel_size, B0_dir)
         S = SMV_kernel(volume_size, voxel_size, radius)
         Mask = SMV(Mask, volume_size, voxel_size, radius) > 0.999
-        D = S*D
+        D = np.real(S*D)
         tempn = np.sqrt(SMV(tempn**2, volume_size, voxel_size, radius)+tempn**2)
 
         # gradient Mask

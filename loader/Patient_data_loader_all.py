@@ -41,7 +41,7 @@ class Patient_data_loader_all(data.Dataset):
         B0_dir,
         factor
     ):
-        self.RDFs, self.Masks, self.Data_weights, self.wGs = [], [], [], []
+        self.RDFs, self.Masks, self.Data_weights, self.wGs, self.Ds = [], [], [], [], []
         for i in range(self.num_subs):
             print('Loading ID: {0}'.format(self.list_IDs[i]))
             self.patientID = self.patientType + str(self.list_IDs[i])
@@ -50,6 +50,7 @@ class Patient_data_loader_all(data.Dataset):
             self.Masks.append(self.Mask[0])
             self.Data_weights.append(self.Data_weight[0])
             self.wGs.append(self.wG[0])
+            self.Ds.append(self.D)
 
     def load_volume(
         self,
@@ -78,7 +79,8 @@ class Patient_data_loader_all(data.Dataset):
         D = dipole_kernel(volume_size, voxel_size, B0_dir)
         S = SMV_kernel(volume_size, voxel_size, radius)
         Mask = SMV(Mask, volume_size, voxel_size, radius) > 0.999
-        D = S*D
+        D = np.real(S*D)
+        self.D = D
         tempn = np.sqrt(SMV(tempn**2, volume_size, voxel_size, radius)+tempn**2)
 
         # gradient Mask
@@ -100,4 +102,4 @@ class Patient_data_loader_all(data.Dataset):
         return self.num_subs
 
     def __getitem__(self, idx):
-        return self.RDFs[idx], self.Masks[idx], self.Data_weights[idx], self.wGs[idx]
+        return self.RDFs[idx], self.Masks[idx], self.Data_weights[idx], self.wGs[idx], self.Ds[idx]
