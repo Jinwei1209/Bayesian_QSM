@@ -42,6 +42,9 @@ if __name__ == '__main__':
     parser.add_argument('--patientID', type=int, default=8)  # for test
     opt = {**vars(parser.parse_args())}
 
+    os.environ['CUDA_VISIBLE_DEVICES'] = opt['gpu_id'] 
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     flag_test = opt['flag_test']
     Lambda_tv = opt['lambda_tv']
     flag_r_train = opt['flag_r_train']
@@ -53,9 +56,6 @@ if __name__ == '__main__':
     elif patient_type == 'MS_old' or 'MS_new':
         valID = 7
         folder_weights_VI = '/weights_VI2'
-
-    os.environ['CUDA_VISIBLE_DEVICES'] = opt['gpu_id'] 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # # network
     unet3d = Unet(
@@ -132,21 +132,22 @@ if __name__ == '__main__':
                     % (epoch, niter, time.time()-t0, Lambda_tv, loss_kl+loss_tv, loss_expectation, unet3d.r))
 
             unet3d.eval()
-            for idx, (rdfs, masks, weights, wGs) in enumerate(valLoader):
+            with torch.no_grad():  # to solve memory exploration issue
+                for idx, (rdfs, masks, weights, wGs) in enumerate(valLoader):
 
-                rdfs = (rdfs.to(device, dtype=torch.float) + trans) * scale
-                masks = masks.to(device, dtype=torch.float)
-                weights = weights.to(device, dtype=torch.float)
-                wGs = wGs.to(device, dtype=torch.float)
+                    rdfs = (rdfs.to(device, dtype=torch.float) + trans) * scale
+                    masks = masks.to(device, dtype=torch.float)
+                    weights = weights.to(device, dtype=torch.float)
+                    wGs = wGs.to(device, dtype=torch.float)
 
-                # calculate KLD
-                outputs = unet3d(rdfs)
-                loss_kl = loss_KL(outputs=outputs, QSMs=0, flag_COSMOS=0, sigma_sq=0)
-                loss_expectation, loss_tv = loss_Expectation(
-                    outputs=outputs, QSMs=0, in_loss_RDFs=rdfs-trans*scale, fidelity_Ws=weights, 
-                    gradient_Ws=wGs, D=D_val, flag_COSMOS=0, Lambda_tv=Lambda_tv, voxel_size=voxel_size, K=K)
-                loss_total = (loss_kl + loss_expectation + loss_tv).item()
-                print('KL Divergence on validation set = {0}'.format(loss_total))
+                    # calculate KLD
+                    outputs = unet3d(rdfs)
+                    loss_kl = loss_KL(outputs=outputs, QSMs=0, flag_COSMOS=0, sigma_sq=0)
+                    loss_expectation, loss_tv = loss_Expectation(
+                        outputs=outputs, QSMs=0, in_loss_RDFs=rdfs-trans*scale, fidelity_Ws=weights, 
+                        gradient_Ws=wGs, D=D_val, flag_COSMOS=0, Lambda_tv=Lambda_tv, voxel_size=voxel_size, K=K)
+                    loss_total = (loss_kl + loss_expectation + loss_tv).item()
+                    print('KL Divergence on validation set = {0}'.format(loss_total))
             
             val_loss.append(loss_total)
             if val_loss[-1] == min(val_loss):
