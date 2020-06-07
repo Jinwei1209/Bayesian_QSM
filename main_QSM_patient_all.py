@@ -204,11 +204,11 @@ if __name__ == '__main__':
         if Lambda_tv:
             adict = {}
             adict['QSM'] = QSM
-            sio.savemat(rootDir+'/QSM_VI_{0}.mat'.format(niter), adict)
+            sio.savemat(rootDir+'/QSM_VI_MS{0}.mat'.format(opt['patientID']), adict)
 
             adict = {}
             adict['STD'] = STD
-            sio.savemat(rootDir+'/STD_VI_{0}.mat'.format(niter), adict)
+            sio.savemat(rootDir+'/STD_VI_MS{0}.mat'.format(opt['patientID']), adict)
         else:
             adict = {}
             adict['QSM'] = QSM
