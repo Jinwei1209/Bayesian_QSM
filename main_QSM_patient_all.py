@@ -22,7 +22,7 @@ if __name__ == '__main__':
     rootDir = '/data/Jinwei/Bayesian_QSM'
 
     # parameters
-    niter = 2000
+    # niter = 2000
     sigma = 0
     lr = 1e-3
     batch_size = 1
@@ -36,6 +36,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Deep Learning QSM')
     parser.add_argument('--gpu_id', type=str, default='0')
     parser.add_argument('--lambda_tv', type=int, default=10)
+    parser.add_argument('--niter', type=int, default=10)
     parser.add_argument('--flag_test', type=int, default=0)
     parser.add_argument('--flag_r_train', type=int, default=0)
     parser.add_argument('--patient_type', type=str, default='ICH')  # or MS_old, MS_new
@@ -47,6 +48,7 @@ if __name__ == '__main__':
 
     flag_test = opt['flag_test']
     Lambda_tv = opt['lambda_tv']
+    niter = opt['niter']
     flag_r_train = opt['flag_r_train']
     patient_type = opt['patient_type']
 
@@ -152,7 +154,7 @@ if __name__ == '__main__':
             val_loss.append(loss_total)
             if val_loss[-1] == min(val_loss):
                 if Lambda_tv:
-                    torch.save(unet3d.state_dict(), rootDir+folder_weights_VI+'/weights_lambda_tv={0}.pt'.format(Lambda_tv))
+                    torch.save(unet3d.state_dict(), rootDir+folder_weights_VI+'/weights_lambda_tv={0}_epoch={1}.pt'.format(Lambda_tv, niter))
                 else:
                     torch.save(unet3d.state_dict(), rootDir+folder_weights_VI+'/weights_no_prior.pt')
 
@@ -169,7 +171,7 @@ if __name__ == '__main__':
         D = np.real(S * D)
 
         if Lambda_tv:
-            weights_dict = torch.load(rootDir+folder_weights_VI+'/weights_lambda_tv={0}.pt'.format(Lambda_tv))
+            weights_dict = torch.load(rootDir+folder_weights_VI+'/weights_lambda_tv={0}_epoch={1}.pt'.format(Lambda_tv, niter))
             # weights_dict['r'] = (torch.ones(1)*r).to(device)
             unet3d.load_state_dict(weights_dict)
         else:
