@@ -75,12 +75,12 @@ if __name__ == '__main__':
     Data_weights = np.real(dataterm_mask(tempn, Mask, Normalize=False))
 
     # adversarial RDF
-    RDF = np.real(load_mat('/data/Jinwei/Bayesian_QSM/adv_noise/rdf_r_40.mat', varname='rdf_r'))
-    RDF = RDF
-    # # simulated RDF
-    # RDF = np.real(np.fft.ifftn(np.fft.fftn(QSM) * D)).astype(np.float32)
-    # RDF = (RDF + trans) * scale
-    # QSM = (QSM + trans) * scale
+    RDF_adv = np.real(load_mat('/data/Jinwei/Bayesian_QSM/adv_noise/rdf_r_40.mat', varname='rdf_r'))
+    RDF = RDF_adv
+    # simulated RDF
+    RDF = np.real(np.fft.ifftn(np.fft.fftn(QSM) * D)).astype(np.float32)
+    RDF = (RDF + trans) * scale
+    QSM = (QSM + trans) * scale
 
     # to torch tensor
     RDF = torch.from_numpy(RDF[np.newaxis, np.newaxis, ...]).float().to(device)
