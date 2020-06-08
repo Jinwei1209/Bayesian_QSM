@@ -40,6 +40,7 @@ if __name__ == '__main__':
     # parameters for adversarial noise generation
     niter = 60  # number of iterations to generate adv noise
     Lambda = 1e+2  # 1e+2 best for now
+    Lambda_bg = 1e+2
     gamma = 0.9
     eta = 10
     tau = 1e-3 
@@ -62,18 +63,20 @@ if __name__ == '__main__':
     unet3d = Unet(
         input_channels=1, 
         output_channels=2,
-        # num_filters=[2**i for i in range(3, 8)],
-        num_filters=[2**i for i in range(5, 10)],
+        num_filters=[2**i for i in range(3, 8)],
+        # num_filters=[2**i for i in range(5, 10)],
         bilateral=1,
         use_deconv=1,
         use_deconv2=1,
         renorm=1,
-        flag_r_train=1
+        flag_r_train=0
     )
 
     print('{0} trainable parameters in total'.format(count_parameters(unet3d)))
     unet3d.to(device)
-    unet3d.load_state_dict(torch.load(rootDir+opt['weight_dir']+'/weights_rsa=-1_validation=6_test=7.pt'))
+    # unet3d.load_state_dict(torch.load(rootDir+opt['weight_dir']+'/weights_rsa=-1_validation=6_test=7.pt'))
+    # unet3d.load_state_dict(torch.load(rootDir+'/weight/weights_sigma={0}_smv={1}_mv8'.format(0, 1)+'.pt'))
+    unet3d.load_state_dict(torch.load(rootDir+'/weight_adv/weights_before_adv.pt'))
     unet3d.eval()
 
     QSMs, STDs, RDFs = [], [], []
@@ -131,7 +134,8 @@ if __name__ == '__main__':
                 samples_r = mean_Maps_r + torch.sqrt(var_Maps_r)*epsilon_r
                 
                 # objective function
-                Q = torch.mean((samples*masks - samples_r*masks)**2)  - Lambda*torch.mean(r**2)
+                Q = torch.mean((samples*masks - samples_r*masks)**2)  - Lambda*torch.mean(r**2) 
+                # - Lambda_bg*torch.mean((samples*(1-masks) - samples_r*(1-masks))**2)
                 # updata
                 Q.backward()
                 v.data = gamma * v.data + eta * r.grad.data
@@ -143,7 +147,7 @@ if __name__ == '__main__':
                 print('Iteration: %d/%d, RMSE: %f, L2 norm of r: %f, L2 norm of the difference: %f' % (epoch, niter, 
                     np.mean((Recon*Mask - Truth*Mask)**2), torch.sum(r**2), torch.sum((samples*masks - samples_r*masks)**2)))
                 
-                if epoch % 20 == 0:
+                if epoch % 10 == 0:
                     adict = {}
                     adict['rdf_r'] = np.squeeze(np.asarray(rdfs_r.cpu().detach()))
                     sio.savemat(rootDir+'adv_noise/rdf_r_{}.mat'.format(epoch), adict)

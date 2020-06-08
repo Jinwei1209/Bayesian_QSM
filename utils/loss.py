@@ -36,6 +36,7 @@ def loss_Expectation(
     Lambda_tv,
     voxel_size,
     K=1,
+    flag_linear=1
 ):
 
     device = outputs.get_device()
@@ -76,7 +77,13 @@ def loss_Expectation(
     D_cplx = torch.tensor(D_cplx, device=device).float()
 
     # fidelity loss (version 1, only 2/3 centric is used)
-    diff = torch.abs(in_loss_RDFs_cplx - torch.ifft(cplx_mlpy(torch.fft(samples_cplx, 3), D_cplx), 3))
+    if flag_linear:
+        diff = torch.abs(in_loss_RDFs_cplx - torch.ifft(cplx_mlpy(torch.fft(samples_cplx, 3), D_cplx), 3))
+    else:
+        samples_rdf = torch.ifft(cplx_mlpy(torch.fft(samples_cplx, 3), D_cplx), 3)
+        diff_real = torch.cos(in_loss_RDFs_cplx[..., 0:1]) - torch.cos(samples_rdf[..., 0:1])
+        diff_imag = torch.sin(in_loss_RDFs_cplx[..., 1:2]) - torch.sin(samples_rdf[..., 1:2])
+        diff = torch.cat((diff_real, diff_imag), dim=-1)
     # loss = torch.sum((fidelity_Ws_cplx[..., diff.size(4)//6:diff.size(4)//6*5, :]*diff[..., diff.size(4)//6:diff.size(4)//6*5, :])**2)/(2*mean_Maps.size()[0])
     # fidelity loss (version 2, zero padding)
     # tmp = torch.ifft(cplx_mlpy(torch.fft(samples_cplx_padding, 3), D_cplx), 3)

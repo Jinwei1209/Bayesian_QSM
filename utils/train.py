@@ -22,7 +22,8 @@ def BayesianQSM_train(
     Lambda_tv,
     voxel_size,
     flag_l1=0,
-    K=1
+    K=1,
+    flag_linear=1
 ):
 
     optimizer.zero_grad()
@@ -38,7 +39,7 @@ def BayesianQSM_train(
             loss_total = loss_kl + loss_expectation
         else:
             loss_expectation, loss_tv = loss_Expectation(outputs, QSMs, in_loss_RDFs, fidelity_Ws, gradient_Ws, \
-                                                        D, flag_COSMOS, Lambda_tv, voxel_size, K)
+                                                        D, flag_COSMOS, Lambda_tv, voxel_size, K, flag_linear)
             loss_total = loss_kl + loss_expectation + loss_tv
 
         loss_total.backward()
