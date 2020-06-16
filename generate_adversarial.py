@@ -38,7 +38,7 @@ if __name__ == '__main__':
     extraction_step = (42, 42, 42)
 
     # parameters for adversarial noise generation
-    niter = 60  # number of iterations to generate adv noise
+    niter = 1000  # number of iterations to generate adv noise
     Lambda = 1e+2  # 1e+2 best for now
     Lambda_bg = 1e+2
     gamma = 0.9
@@ -74,7 +74,7 @@ if __name__ == '__main__':
 
     print('{0} trainable parameters in total'.format(count_parameters(unet3d)))
     unet3d.to(device)
-    # unet3d.load_state_dict(torch.load(rootDir+opt['weight_dir']+'/weights_rsa=-1_validation=6_test=7.pt'))
+    # unet3d.load_state_dict(torch.load(rootDir+'/weight_cv/weights_rsa=-1_validation=6_test=7.pt'))
     # unet3d.load_state_dict(torch.load(rootDir+'/weight/weights_sigma={0}_smv={1}_mv8'.format(0, 1)+'.pt'))
     unet3d.load_state_dict(torch.load(rootDir+'/weight_adv/weights_before_adv.pt'))
     unet3d.eval()

@@ -23,22 +23,24 @@ from utils.loss import *
 if __name__ == '__main__':
 
     # default params
-    niters = 200
+    niters = 25
     lr = 1e-3
     voxel_size = (1, 1, 3)
     radius = 5
     B0_dir = (0, 0, 1)
     trans = 0.15
     scale = 3
-    K = 10
-    r = 1e-5
-    
+    K = 5  # k = 5 for paper result
+    # r = 1e-5  # 1e-5 for paper result, 1e-3 r not negative when training enabled (full volume)
+    r = 1e-3
+
     # typein parameters
     parser = argparse.ArgumentParser(description='Deep Learning QSM')
     parser.add_argument('--gpu_id', type=str, default='0')
-    parser.add_argument('--lambda_tv', type=int, default=1e-1)
+    parser.add_argument('--lambda_tv', type=float, default=1e-1)
     parser.add_argument('--flag_r_train', type=int, default=0)
     opt = {**vars(parser.parse_args())}
+    # python restore_adversarial.py --flag_r_train=0
 
     Lambda_tv = opt['lambda_tv']
     flag_r_train = opt['flag_r_train']
@@ -60,10 +62,11 @@ if __name__ == '__main__':
     # Mask = np.real(load_mat(filename, varname='Mask_new'))[30:190, 30:190, :, 0]
     Mask = np.real(load_mat(filename, varname='Mask_new'))[..., 0]
 
-    filename = '{0}/{1}/N_std_smv_3mm.mat'.format(dataFolder, i_case)
+    filename = '{0}/{1}/N_std_3mm.mat'.format(dataFolder, i_case)
     # N_std = np.real(load_mat(filename, varname='N_std_new'))[30:190, 30:190, :, 0]
     N_std = np.real(load_mat(filename, varname='N_std_new'))[..., 0]
     tempn = np.double(N_std)
+    tempn = np.sqrt(SMV(tempn**2, volume_size, voxel_size, radius)+tempn**2)
 
     filename = '{0}/{1}/iMag_smv_3mm.mat'.format(dataFolder, i_case)
     # iMag = np.real(load_mat(filename, varname='iMag_new'))[30:190, 30:190, :, 0]
@@ -75,19 +78,20 @@ if __name__ == '__main__':
     Data_weights = np.real(dataterm_mask(tempn, Mask, Normalize=False))
 
     # adversarial RDF
-    RDF_adv = np.real(load_mat('/data/Jinwei/Bayesian_QSM/adv_noise/rdf_r_40.mat', varname='rdf_r'))
-    RDF = RDF_adv
+    RDF_adv = np.real(load_mat('/data/Jinwei/Bayesian_QSM/adv_noise/rdf_r_50.mat', varname='rdf_r'))
     # simulated RDF
     RDF = np.real(np.fft.ifftn(np.fft.fftn(QSM) * D)).astype(np.float32)
     RDF = (RDF + trans) * scale
     QSM = (QSM + trans) * scale
+
+    RDF[30:190, 30:190, :] = RDF_adv
+    # RDF = RDF_adv
 
     # to torch tensor
     RDF = torch.from_numpy(RDF[np.newaxis, np.newaxis, ...]).float().to(device)
     QSM = torch.from_numpy(QSM[np.newaxis, np.newaxis, ...]).float().to(device)
     wG = torch.from_numpy(wG[np.newaxis, np.newaxis, ...]).float().to(device)
     Data_weights = torch.from_numpy(Data_weights[np.newaxis, np.newaxis, ...]).float().to(device)
-    # Data_weights = torch.ones(Data_weights.shape).to(device)
     Mask = torch.from_numpy(Mask[np.newaxis, np.newaxis, ...]).float().to(device)
 
     # network
@@ -105,11 +109,12 @@ if __name__ == '__main__':
 
     unet3d.to(device)
     # weights_dict = torch.load(rootDir+'/weight_cv/weights_rsa=-1_validation=6_test=7.pt')
-    # weights_dict = torch.load(rootDir+'/weight/weights_sigma={0}_smv={1}_mv8'.format(0, 1)+'.pt')
-    weights_dict = torch.load(rootDir+'/weight_adv/weights_before_adv.pt')
+    weights_dict = torch.load(rootDir+'/weight/weights_sigma={0}_smv={1}_mv6'.format(0, 1)+'.pt')
+    # weights_dict = torch.load(rootDir+'/weight_adv/weights_before_adv.pt')
+    # weights_dict = torch.load(rootDir+'/weights_before_adv_use_deconv2=0.pt')
     weights_dict['r'] = (torch.ones(1)*r).to(device)
     unet3d.load_state_dict(weights_dict)
-    unet3d.eval()
+    unet3d.train()
 
     # optimizer
     optimizer = optim.Adam(unet3d.parameters(), lr=lr, betas=(0.5, 0.999))
@@ -119,13 +124,16 @@ if __name__ == '__main__':
     loss1_sum, loss2_sum = 0, 0
     t0 = time.time()
     while epoch < niters:
+        # unet3d.train()
         epoch += 1
 
+
+        # # for pre-trained network weights
         # if gen_iterations%display_iters == 1:
         #     print('Epochs: [%d/%d], time: %ds, r: %f'
         #         % (epoch, niters, time.time()-t0, unet3d.r))
         #     print('Term1_loss: %f, term2_loss: %f' % (loss1_sum/display_iters, loss2_sum/display_iters))
-        #     torch.save(unet3d.state_dict(), rootDir+'/weights_before_adv.pt')
+        #     torch.save(unet3d.state_dict(), rootDir+'/weights_before_adv_use_deconv2=0.pt')
         #     loss1_sum, loss2_sum = 0, 0
 
         # optimizer.zero_grad()
@@ -145,9 +153,11 @@ if __name__ == '__main__':
         # loss2_sum += loss2.item()
         # gen_iterations += 1
 
+
+        # for subject-specific VI
         if epoch == 1:
-            means = unet3d(RDF)[:, 0, ...]
-            stds = unet3d(RDF)[:, 1, ...]
+            means = unet3d(RDF)[:, 0:1, ...] * Mask
+            stds = unet3d(RDF)[:, 1:2, ...] * Mask
             QSM = np.squeeze(np.asarray(means.cpu().detach()))
             STD = np.squeeze(np.asarray(stds.cpu().detach()))
 
@@ -181,17 +191,20 @@ if __name__ == '__main__':
         print('epochs: [%d/%d], time: %ds, Lambda_tv: %f, Entropy loss: %2f, TV_loss: %2f, Expectation_loss: %2f, r: %f'
             % (epoch, niters, time.time()-t0, Lambda_tv, loss_kl, loss_tv, loss_expectation, unet3d.r))
 
-    means = unet3d(RDF)[:, 0, ...]
-    stds = unet3d(RDF)[:, 1, ...]
+        # if epoch % 10 == 0:
+    unet3d.eval()
+
+    means = unet3d(RDF)[:, 0:1, ...] * Mask
+    stds = unet3d(RDF)[:, 1:2, ...] * Mask
     QSM = np.squeeze(np.asarray(means.cpu().detach()))
     STD = np.squeeze(np.asarray(stds.cpu().detach()))
 
     adict = {}
     adict['QSM'] = QSM
-    sio.savemat(rootDir+'/QSM_f.mat', adict)
+    sio.savemat(rootDir+'/QSM_f_{0}.mat'.format(epoch), adict)
 
     adict = {}
     adict['STD'] = STD
-    sio.savemat(rootDir+'/STD_f.mat', adict)
+    sio.savemat(rootDir+'/STD_f_{0}.mat'.format(epoch), adict)
 
 

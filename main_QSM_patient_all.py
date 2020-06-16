@@ -35,13 +35,16 @@ if __name__ == '__main__':
     # typein parameters
     parser = argparse.ArgumentParser(description='Deep Learning QSM')
     parser.add_argument('--gpu_id', type=str, default='0')
-    parser.add_argument('--lambda_tv', type=int, default=10)
+    parser.add_argument('--lambda_tv', type=int, default=20)
     parser.add_argument('--niter', type=int, default=10)
     parser.add_argument('--flag_test', type=int, default=0)
     parser.add_argument('--flag_r_train', type=int, default=0)
     parser.add_argument('--patient_type', type=str, default='ICH')  # or MS_old, MS_new
     parser.add_argument('--patientID', type=int, default=8)  # for test
     opt = {**vars(parser.parse_args())}
+
+    # for test:
+    # python main_QSM_patient_all.py --gpu_id=1 --flag_test=1 --lambda_tv=20
 
     os.environ['CUDA_VISIBLE_DEVICES'] = opt['gpu_id'] 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -171,7 +174,8 @@ if __name__ == '__main__':
         D = np.real(S * D)
 
         if Lambda_tv:
-            weights_dict = torch.load(rootDir+folder_weights_VI+'/weights_lambda_tv={0}_epoch={1}.pt'.format(Lambda_tv, niter))
+            # weights_dict = torch.load(rootDir+folder_weights_VI+'/weights_lambda_tv={0}_epoch={1}.pt'.format(Lambda_tv, niter))
+            weights_dict = torch.load(rootDir+folder_weights_VI+'/weights_lambda_tv={0}.pt'.format(Lambda_tv))
             # weights_dict['r'] = (torch.ones(1)*r).to(device)
             unet3d.load_state_dict(weights_dict)
         else:
@@ -198,17 +202,18 @@ if __name__ == '__main__':
             loss_expectation, loss_tv = loss_Expectation(
                 outputs=outputs, QSMs=0, in_loss_RDFs=rdfs-trans*scale, fidelity_Ws=weights, 
                 gradient_Ws=wGs, D=D, flag_COSMOS=0, Lambda_tv=Lambda_tv, voxel_size=voxel_size, K=K)
-            print('r: %f, Entropy loss: %2f, TV_loss: %2f, Expectation_loss: %2f'
-                % (unet3d.r, loss_kl.item(), loss_tv.item(), loss_expectation.item()))
+            loss_total = loss_kl.item() + loss_tv.item() + loss_expectation.item()
+            print('r: %f, Entropy loss: %2f, TV_loss: %2f, Expectation_loss: %2f, Total_loss: %2f'
+                % (unet3d.r, loss_kl.item(), loss_tv.item(), loss_expectation.item(), loss_total))
         
         if Lambda_tv:
             adict = {}
             adict['QSM'] = QSM
-            sio.savemat(rootDir+'/QSM_VI_MS{0}.mat'.format(opt['patientID']), adict)
+            sio.savemat(rootDir+'/QSM_VI_ICH{0}.mat'.format(opt['patientID']), adict)
 
             adict = {}
             adict['STD'] = STD
-            sio.savemat(rootDir+'/STD_VI_MS{0}.mat'.format(opt['patientID']), adict)
+            sio.savemat(rootDir+'/STD_VI_ICH{0}.mat'.format(opt['patientID']), adict)
         else:
             adict = {}
             adict['QSM'] = QSM
