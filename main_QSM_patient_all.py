@@ -71,7 +71,8 @@ if __name__ == '__main__':
         use_deconv=1,
         use_deconv2=1,
         renorm=1,
-        flag_r_train=flag_r_train
+        flag_r_train=flag_r_train,
+        r=r
     )
     # unet3d = Unet(
     #     input_channels=1, 
@@ -98,9 +99,10 @@ if __name__ == '__main__':
         D = dipole_kernel(volume_size, voxel_size, B0_dir)
         D_val = np.real(S * D)
 
-        weights_dict = torch.load(rootDir+'/weight/weights_sigma={0}_smv={1}_mv8'.format(sigma, 1)+'.pt')
-        weights_dict['r'] = (torch.ones(1)*r).to(device)
-        unet3d.load_state_dict(weights_dict)
+        # weights_dict = torch.load(rootDir+'/weight/weights_sigma={0}_smv={1}_mv8'.format(sigma, 1)+'.pt')
+        # weights_dict['r'] = (torch.ones(1)*r).to(device)
+        # unet3d.load_state_dict(weights_dict)
+
         # optimizer
         optimizer = optim.Adam(unet3d.parameters(), lr=lr, betas=(0.5, 0.999))
 
@@ -157,7 +159,8 @@ if __name__ == '__main__':
             val_loss.append(loss_total)
             if val_loss[-1] == min(val_loss):
                 if Lambda_tv:
-                    torch.save(unet3d.state_dict(), rootDir+folder_weights_VI+'/weights_lambda_tv={0}_epoch={1}.pt'.format(Lambda_tv, niter))
+                    # torch.save(unet3d.state_dict(), rootDir+folder_weights_VI+'/weights_lambda_tv={0}_epoch={1}.pt'.format(Lambda_tv, niter))
+                    torch.save(unet3d.state_dict(), rootDir+folder_weights_VI+'/weights_tv_no_initial_r.pt')
                 else:
                     torch.save(unet3d.state_dict(), rootDir+folder_weights_VI+'/weights_no_prior.pt')
 
@@ -175,7 +178,8 @@ if __name__ == '__main__':
 
         if Lambda_tv:
             # weights_dict = torch.load(rootDir+folder_weights_VI+'/weights_lambda_tv={0}_epoch={1}.pt'.format(Lambda_tv, niter))
-            weights_dict = torch.load(rootDir+folder_weights_VI+'/weights_lambda_tv={0}.pt'.format(Lambda_tv))
+            # weights_dict = torch.load(rootDir+folder_weights_VI+'/weights_lambda_tv={0}.pt'.format(Lambda_tv))
+            weights_dict = torch.load(rootDir+folder_weights_VI+'/weights_tv_no_initial_r.pt')
             # weights_dict['r'] = (torch.ones(1)*r).to(device)
             unet3d.load_state_dict(weights_dict)
         else:

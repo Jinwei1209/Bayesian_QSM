@@ -9,6 +9,7 @@ import argparse
 
 from torch.utils import data
 from loader.COSMOS_data_loader import COSMOS_data_loader
+from loader.Patient_data_loader import Patient_data_loader
 from models.unet import Unet
 from models.unetag import UnetAg
 from models.utils import count_parameters
@@ -104,18 +105,19 @@ if __name__ == '__main__':
 
     QSMs, STDs, RDFs = [], [], []
     RMSEs, Fidelities = [], []
-    for test_dir in range(0, 5):
-        dataLoader = COSMOS_data_loader(
-            split='Test',
-            case_validation=val,
-            case_test=test,
-            test_dir=test_dir,
-            patchSize=patchSize, 
-            extraction_step=extraction_step,
-            voxel_size=voxel_size,
-            flag_smv=flag_smv,
-            flag_gen=flag_gen
-        )
+    for test_dir in range(0, 1):
+        # dataLoader = COSMOS_data_loader(
+        #     split='Test',
+        #     case_validation=val,
+        #     case_test=test,
+        #     test_dir=test_dir,
+        #     patchSize=patchSize, 
+        #     extraction_step=extraction_step,
+        #     voxel_size=voxel_size,
+        #     flag_smv=flag_smv,
+        #     flag_gen=flag_gen
+        # )
+        dataLoader = Patient_data_loader(patientType='MS_new', patientID=3)
         testLoader = data.DataLoader(dataLoader, batch_size=1, shuffle=False)
 
         patches_means, patches_stds = [], []
@@ -123,6 +125,8 @@ if __name__ == '__main__':
         
             rdfs = (rdfs.to(device, dtype=torch.float) + trans) * scale
             qsms = (qsms.to(device, dtype=torch.float) + trans) * scale
+            rdfs = rdfs[:, :, 50:220, 50:220, :]
+            qsms = qsms[:, :, 50:220, 50:220, :]
             # count time of PDI
             t0 = time.time()
             
@@ -131,41 +135,45 @@ if __name__ == '__main__':
             
             means = np.asarray(means.cpu().detach())
             stds = np.asarray(stds.cpu().detach())
+
+            adict = {}
+            adict['QSMs'] = means.squeeze()
+            sio.savemat(rootDir+'/result_cv/QSMs_{0}{1}{2}'.format(math.floor(rsa), math.floor(val), math.floor(test))+'.mat', adict)
             
-            patches_means.append(means)
-            patches_stds.append(stds)
+    #         patches_means.append(means)
+    #         patches_stds.append(stds)
 
-            time_PDI = time.time() - t0
-            print('GPU time = {0}'.format(time_PDI))
+    #         time_PDI = time.time() - t0
+    #         print('GPU time = {0}'.format(time_PDI))
             
-        patches_means = np.concatenate(patches_means, axis=0)
-        patches_stds = np.concatenate(patches_stds, axis=0)
+    #     patches_means = np.concatenate(patches_means, axis=0)
+    #     patches_stds = np.concatenate(patches_stds, axis=0)
 
-        chi_true = np.squeeze(np.asarray(qsms.cpu().detach()))
-        chi_recon = np.squeeze(patches_means)
-        rdf_measured = np.squeeze(np.asarray(rdfs.cpu().detach()))
+    #     chi_true = np.squeeze(np.asarray(qsms.cpu().detach()))
+    #     chi_recon = np.squeeze(patches_means)
+    #     rdf_measured = np.squeeze(np.asarray(rdfs.cpu().detach()))
 
-        RMSEs.append(compute_rmse(chi_recon, chi_true))
-        Fidelities.append(compute_fidelity_error(chi_recon, rdf_measured, voxel_size=voxel_size))
+    #     RMSEs.append(compute_rmse(chi_recon, chi_true))
+    #     Fidelities.append(compute_fidelity_error(chi_recon, rdf_measured, voxel_size=voxel_size))
 
-        QSM = reconstruct_patches(patches_means, dataLoader.volSize, extraction_step)
-        STD = reconstruct_patches(patches_stds, dataLoader.volSize, extraction_step)
+    #     QSM = reconstruct_patches(patches_means, dataLoader.volSize, extraction_step)
+    #     STD = reconstruct_patches(patches_stds, dataLoader.volSize, extraction_step)
 
-        QSMs.append(QSM)
-        STDs.append(STD)
-        RDFs.append(rdf_measured)
+    #     QSMs.append(QSM)
+    #     STDs.append(STD)
+    #     RDFs.append(rdf_measured)
 
-    QSMs, STDs = np.asarray(QSMs), np.asarray(STDs)
-    print('RMSE = {}'.format(sum(RMSEs)/len(RMSEs)))
-    print('Fidelity Loss = {}'.format(sum(Fidelities)/len(Fidelities)))
+    # QSMs, STDs = np.asarray(QSMs), np.asarray(STDs)
+    # print('RMSE = {}'.format(sum(RMSEs)/len(RMSEs)))
+    # print('Fidelity Loss = {}'.format(sum(Fidelities)/len(Fidelities)))
 
-    adict = {}
-    adict['QSMs'] = np.moveaxis(QSMs, 0, -1)
-    sio.savemat(rootDir+'/result_cv/QSMs_{0}{1}{2}'.format(math.floor(rsa), math.floor(val), math.floor(test))+'.mat', adict)
+    # adict = {}
+    # adict['QSMs'] = np.moveaxis(QSMs, 0, -1)
+    # sio.savemat(rootDir+'/result_cv/QSMs_{0}{1}{2}'.format(math.floor(rsa), math.floor(val), math.floor(test))+'.mat', adict)
 
-    adict = {}
-    adict['STDs'] = np.moveaxis(STDs, 0, -1)
-    sio.savemat(rootDir+'/result_cv/STDs_{0}{1}{2}'.format(math.floor(rsa), math.floor(val), math.floor(test))+'.mat', adict)
+    # adict = {}
+    # adict['STDs'] = np.moveaxis(STDs, 0, -1)
+    # sio.savemat(rootDir+'/result_cv/STDs_{0}{1}{2}'.format(math.floor(rsa), math.floor(val), math.floor(test))+'.mat', adict)
 
 
 

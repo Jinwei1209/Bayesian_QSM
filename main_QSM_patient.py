@@ -51,7 +51,8 @@ if __name__ == '__main__':
     # parameters
     niter = 100
     sigma = 0
-    lr = 1e-3
+    # lr = 1e-3
+    lr = 5e-4
     batch_size = 1
     B0_dir = (0, 0, 1)
     trans = 0.15
@@ -125,7 +126,7 @@ if __name__ == '__main__':
                 adict['STD'] = STD
                 sio.savemat(rootDir+'/STD_0.mat', adict)
 
-                unet3d.train()
+                # unet3d.train()
 
             loss_kl,  loss_tv, loss_expectation = BayesianQSM_train(
                 model=unet3d,
@@ -160,7 +161,7 @@ if __name__ == '__main__':
                 adict['STD'] = STD
                 sio.savemat(rootDir+'/STD_f_{0}.mat'.format(epoch), adict)
                 
-                unet3d.train()
+                # unet3d.train()
 
     unet3d.eval()
 
