@@ -69,7 +69,7 @@ if __name__ == '__main__':
     unet3d.to(device)
 
     # dataloader
-    dataLoader_train = COSMOS_data_loader(
+    dataLoader_train = COSMOS_data_loader_whole(
         split='Train',
         voxel_size=voxel_size,
         case_validation=opt['case_validation'],
@@ -78,7 +78,7 @@ if __name__ == '__main__':
         flag_gen=flag_gen)
     trainLoader = data.DataLoader(dataLoader_train, batch_size=batch_size, shuffle=True, pin_memory=True)
 
-    dataLoader_val = COSMOS_data_loader(
+    dataLoader_val = COSMOS_data_loader_whole(
         split='Val',
         voxel_size=voxel_size,
         case_validation=opt['case_validation'],
@@ -101,7 +101,6 @@ if __name__ == '__main__':
 
         unet3d.train()
         for idx, (rdfs, masks, weights, wGs, D) in enumerate(trainLoader):
-
             rdfs = (rdfs.to(device, dtype=torch.float) + trans) * scale
             masks = masks.to(device, dtype=torch.float)
             weights = weights.to(device, dtype=torch.float)

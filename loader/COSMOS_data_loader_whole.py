@@ -72,7 +72,7 @@ class COSMOS_data_loader_whole(data.Dataset):
                 filename = '{0}/{1}/N_std_3mm.mat'.format(self.dataFolder, i_case)
                 N_std = np.real(load_mat(filename, varname='N_std_new'))
                 filename = '{0}/{1}/iMag_smv_3mm.mat'.format(self.dataFolder, i_case)
-                iMag = np.real(load_mat(filename, varname='COSMOS_new'))
+                iMag = np.real(load_mat(filename, varname='iMag_new'))
                 filename = '{0}/{1}/COSMOS_smv_3mm.mat'.format(self.dataFolder, i_case)
                 QSM = np.real(load_mat(filename, varname='COSMOS_new'))
             else:
@@ -109,31 +109,20 @@ class COSMOS_data_loader_whole(data.Dataset):
                 # fidelity term weight
                 Data_weight_dir = np.real(dataterm_mask(N_std_dir, Mask_dir, Normalize=False))
 
-                RDF_aug = augment_data(RDF_dir, voxel_size=voxel_size, flip='', thetas=[-15, 15])
-                Mask_aug = augment_data(Mask_dir, voxel_size=voxel_size, flip='', thetas=[-15, 15])
-                Data_weight_aug = augment_data(Data_weight_dir, voxel_size=voxel_size, flip='', thetas=[-15, 15])
-                wG_aug = augment_data(wG_dir, voxel_size=voxel_size, flip='', thetas=[-15, 15])
-                QSM_aug = augment_data(QSM_dir, voxel_size=voxel_size, flip='', thetas=[-15, 15])
-
                 if self.flag_gen:
                     D = dipole_kernel(matrix_size, voxel_size, B0_dir)
                     # if self.flag_smv:
                     #     S = SMV_kernel(matrix_size, voxel_size, radius)
                     #     D = S * D
                     RDF_dir = np.real(np.fft.ifftn(np.fft.fftn(QSM_dir) * D)).astype(np.float32)
-                    RDF_aug = augment_data(RDF_dir, voxel_size=voxel_size, flip='', thetas=[-15, 15])
 
-                self.RDFs.append(RDF_aug)
-                self.Masks.append(Mask_aug)
-                self.Data_weights.append(Data_weight_aug)
-                self.wGs.append(wG_aug)
+                self.RDFs.append(RDF_dir[np.newaxis, ...])
+                self.Masks.append(Mask_dir[np.newaxis, ...])
+                self.Data_weights.append(Data_weight_dir[np.newaxis, ...])
+                self.wGs.append(wG_dir[np.newaxis, ...])
 
             self.Ds.append(D)
-
-        self.RDFs = np.concatenate(self.RDFs, axis=0)[:, np.newaxis, ...]
-        self.Masks = np.concatenate(self.Masks, axis=0)[:, np.newaxis, ...]
-        self.Data_weights = np.concatenate(self.Data_weights, axis=0)[:, np.newaxis, ...]
-        self.wGs = np.concatenate(self.wGs, axis=0)[:, np.newaxis, ...]
+        
         self.num_samples = len(self.RDFs)
         print('{0} {1} cases in total'.format(self.num_samples, self.split))
 
@@ -141,7 +130,7 @@ class COSMOS_data_loader_whole(data.Dataset):
         return self.num_samples
 
     def __getitem__(self, idx):
-        return self.RDFs[idx], self.Masks[idx], self.Data_weights[idx], self.wGs[idx], self.Ds[idx%15]
+        return self.RDFs[idx], self.Masks[idx], self.Data_weights[idx], self.wGs[idx], self.Ds[idx//5]
 
         
 
