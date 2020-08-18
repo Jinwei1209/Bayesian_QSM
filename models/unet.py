@@ -99,6 +99,15 @@ class Unet(nn.Module):
             x1 = up(x1, blocks[-idx-1])
         x1 = self.last_layer(x1)
 
+        # x1 = torch.exp(x1)
+        # if self.renorm:
+        #     device = x1.get_device()
+        #     xbar = torch.mean(x1)
+        #     r = self.r/xbar
+        #     beta = (1-self.r) / (1-xbar)
+        #     le = (r<=1).to(device, dtype=torch.float32) 
+        #     x1 = le * x1 * r + (1-le) * (1 - (1-x1) * beta)
+
         if self.bilateral:
             if self.bilateral_infer:
                 print('Inference Process of PDI')

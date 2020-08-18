@@ -8,7 +8,8 @@ import argparse
 
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils import data
-from loader.COSMOS_data_loader import COSMOS_data_loader
+# from loader.COSMOS_data_loader import COSMOS_data_loader
+from loader.COSMOS_data_loader_QSMnet_p import COSMOS_data_loader
 from models.unet import Unet
 from models.unetag import UnetAg
 from utils.train import BayesianQSM_train

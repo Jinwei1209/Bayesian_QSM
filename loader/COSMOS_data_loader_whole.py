@@ -7,6 +7,7 @@ from utils.medi import *
 from utils.data import *
 
 '''
+Whole brain loader for PDI-VI training
 COSMOS dataloader of 3mm slice thickness data with SMV filtering 
 or 1mm slice thickness data without SMV filtering
 '''
