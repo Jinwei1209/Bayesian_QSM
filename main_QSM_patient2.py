@@ -52,7 +52,7 @@ if __name__ == '__main__':
         )
 
     # parameters
-    niter = 1
+    niter = 10
     # lr = 1e-3
     lr = 5e-4
     batch_size = 1
