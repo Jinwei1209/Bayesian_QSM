@@ -107,7 +107,7 @@ if __name__ == '__main__':
                 print('Saving initial results')
                 adict = {}
                 adict['QSMnet'] = QSMnet
-                sio.savemat(rootDir+'/QSMnet.mat', adict)
+                sio.savemat(rootDir+'/QSMnet{}.mat'.format(flag_init), adict)
 
     #         loss_kl,  loss_tv, loss_expectation = BayesianQSM_train(
     #             model=unet3d,
