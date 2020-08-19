@@ -143,7 +143,7 @@ if __name__ == '__main__':
 
         # training phase
         unet3d.train()
-        for idx, (rdfs, masks, weights, qsms) in enumerate(trainLoader):
+        for idx, (rdfs, masks, qsms) in enumerate(trainLoader):
             if gen_iterations%display_iters == 0:
                 print('epochs: [%d/%d], batchs: [%d/%d], time: %ds, case_validation: %f'
                     % (epoch, niter, idx, dataLoader_train.num_samples//batch_size+1, time.time()-t0, opt['case_validation']))
@@ -156,7 +156,6 @@ if __name__ == '__main__':
             rdfs = (rdfs.to(device, dtype=torch.float) + trans) * scale
             qsms = (qsms.to(device, dtype=torch.float) + trans) * scale
             masks = masks.to(device, dtype=torch.float)
-            weights = weights.to(device, dtype=torch.float)
 
             loss_l1 = BayesianQSM_train(
                 model=unet3d,
@@ -164,7 +163,7 @@ if __name__ == '__main__':
                 in_loss_RDFs=rdfs,
                 QSMs=qsms,
                 Masks=masks,
-                fidelity_Ws=weights,
+                fidelity_Ws=0,
                 gradient_Ws=0,
                 D=D,
                 flag_COSMOS=1,
@@ -185,11 +184,10 @@ if __name__ == '__main__':
         loss_total = 0
         idx = 0
         with torch.no_grad():  # to solve memory exploration issue
-            for idx, (rdfs, masks, weights, qsms) in enumerate(valLoader):
+            for idx, (rdfs, masks, qsms) in enumerate(valLoader):
                 idx += 1
                 rdfs = (rdfs.to(device, dtype=torch.float) + trans) * scale
                 qsms = (qsms.to(device, dtype=torch.float) + trans) * scale
-                weights = weights.to(device, dtype=torch.float)
                 outputs = unet3d(rdfs)
 
                 loss_total += loss_L1(outputs[:, 0:1, ...], qsms)
