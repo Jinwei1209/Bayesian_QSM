@@ -104,7 +104,7 @@ if __name__ == '__main__':
     scheduler = MultiStepLR(optimizer, milestones = ms, gamma = 0.2)
 
     # logger
-    logger = Logger('logs', rootDir, opt['flag_rsa'], opt['case_validation'], opt['case_test'])
+    logger = Logger('logs', rootDir, opt['linear_factor'], opt['case_validation'], opt['case_test'])
 
     # dataloader
     dataLoader_train = COSMOS_data_loader(
@@ -222,4 +222,4 @@ if __name__ == '__main__':
         % (epoch, niter, Validation_loss[-1]))
 
         if Validation_loss[-1] == min(Validation_loss):
-            torch.save(unet3d.state_dict(), rootDir+'/weights_rsa={0}_validation={1}_test={2}'.format(opt['flag_rsa'], opt['case_validation'], opt['case_test'])+'.pt')
+            torch.save(unet3d.state_dict(), rootDir+'/weights_rsa={0}_validation={1}_test={2}'.format(opt['linear_factor'], opt['case_validation'], opt['case_test'])+'.pt')

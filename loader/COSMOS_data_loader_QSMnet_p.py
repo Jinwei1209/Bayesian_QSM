@@ -128,7 +128,7 @@ class COSMOS_data_loader(data.Dataset):
                         patches_QSMs.append(-patches_QSM)
 
                 if self.flag_gen:
-                    print('Aguementate data using linearity')
+                    print('Augment data using linearity')
                     D = dipole_kernel(matrix_size, voxel_size, B0_dir)
                     QSM_dir[Mask_dir > 0] = QSM_dir[Mask_dir > 0] * self.linear_factor
                     RDF_dir = np.real(np.fft.ifftn(np.fft.fftn(QSM_dir) * D)).astype(np.float32)
