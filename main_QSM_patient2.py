@@ -123,7 +123,7 @@ if __name__ == '__main__':
                 sigma_sq=0,
                 Lambda_tv=0,
                 voxel_size=voxel_size,
-                K=K,
+                K=1,
                 flag_l1=2
             )
 
