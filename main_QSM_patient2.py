@@ -121,7 +121,7 @@ if __name__ == '__main__':
                 flag_COSMOS=0,
                 optimizer=optimizer,
                 sigma_sq=0,
-                Lambda_tv=Lambda_tv,
+                Lambda_tv=0,
                 voxel_size=voxel_size,
                 K=K,
                 flag_l1=2
