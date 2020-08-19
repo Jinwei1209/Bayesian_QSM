@@ -127,7 +127,7 @@ if __name__ == '__main__':
                 flag_l1=2
             )
 
-            print('epochs: [%d/%d], time: %ds, Fidelity loss: %f', % (epoch, niter, time.time()-t0, loss_fidelity))
+            print('epochs: [%d/%d], time: %ds, Fidelity loss: %f' % (epoch, niter, time.time()-t0, loss_fidelity))
 
     FINE = unet3d(rdf_inputs)[:, 0, ...]
     FINE = np.squeeze(np.asarray(FINE.cpu().detach()))
