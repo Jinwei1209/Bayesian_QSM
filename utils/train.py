@@ -21,7 +21,7 @@ def BayesianQSM_train(
     sigma_sq,
     Lambda_tv,
     voxel_size,
-    flag_l1=0,
+    flag_l1=0,  # 0 for Bayesian VI, 1 for QSMnet loss, 2 for FINE loss
     K=1,
     flag_linear=1,
     flag_test=0
@@ -51,7 +51,7 @@ def BayesianQSM_train(
         else:
             return loss_kl.item(), loss_tv.item(), loss_expectation.item()
 
-    else:
+    elif flag_l1 == 1:
         # l1 loss
         loss = lossL1()
         outputs = outputs[:, 0:1, ...]
@@ -84,6 +84,35 @@ def BayesianQSM_train(
             err.backward()
             optimizer.step()
             return err.item()
+
+    else:
+        outputs = outputs[:, 0:1, ...]
+        device = outputs.get_device()
+        
+        outputs_cplx = torch.zeros(*(outputs.size()+(2,))).to(device)
+        outputs_cplx[..., 0] = outputs
+
+        D = np.repeat(D[np.newaxis, np.newaxis, ..., np.newaxis], outputs.size()[0], axis=0)
+        D_cplx = np.concatenate((D, np.zeros(D.shape)), axis=-1)
+        D_cplx = torch.tensor(D_cplx, device=device).float()
+
+        RDFs_outputs = torch.ifft(cplx_mlpy(torch.fft(outputs_cplx, 3), D_cplx), 3)
+
+        in_loss_RDFs_cplx = torch.zeros(*(outputs.size()+(2,))).to(device)
+        in_loss_RDFs_cplx[..., 0] = in_loss_RDFs
+
+        fidelity_Ws_cplx = torch.zeros(*(outputs.size()+(2,))).to(device)
+        fidelity_Ws_cplx[..., 0] = fidelity_Ws
+
+        diff = torch.abs(in_loss_RDFs_cplx - RDFs_outputs)
+        loss = torch.sum((fidelity_Ws_cplx*diff)**2)
+
+        loss.backward()
+        optimizer.step()
+        return loss.item()
+
+
+
 
 
 def utfi_train(

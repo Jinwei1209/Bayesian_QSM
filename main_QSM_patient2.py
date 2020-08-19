@@ -109,49 +109,29 @@ if __name__ == '__main__':
                 adict['QSMnet'] = QSMnet
                 sio.savemat(rootDir+'/QSMnet{}.mat'.format(flag_init), adict)
 
-    #         loss_kl,  loss_tv, loss_expectation = BayesianQSM_train(
-    #             model=unet3d,
-    #             input_RDFs=rdf_inputs,
-    #             in_loss_RDFs=rdfs,
-    #             QSMs=0,
-    #             Masks=masks,
-    #             fidelity_Ws=weights,
-    #             gradient_Ws=wGs,
-    #             D=D,
-    #             flag_COSMOS=0,
-    #             optimizer=optimizer,
-    #             sigma_sq=0,
-    #             Lambda_tv=Lambda_tv,
-    #             voxel_size=voxel_size,
-    #             K=K
-    #         )
+            loss_fidelity = BayesianQSM_train(
+                model=unet3d,
+                input_RDFs=rdf_inputs,
+                in_loss_RDFs=rdfs,
+                QSMs=0,
+                Masks=masks,
+                fidelity_Ws=weights,
+                gradient_Ws=wGs,
+                D=D,
+                flag_COSMOS=0,
+                optimizer=optimizer,
+                sigma_sq=0,
+                Lambda_tv=Lambda_tv,
+                voxel_size=voxel_size,
+                K=K,
+                flag_l1=2
+            )
 
-    #         loss_total = loss_kl + loss_tv + loss_expectation
+            print('epochs: [%d/%d], time: %ds, Fidelity loss: %f', % (epoch, niter, time.time()-t0, loss_fidelity))
 
-    #         print('epochs: [%d/%d], time: %ds, Lambda_tv: %f, Entropy loss: %2f, TV_loss: %2f, Expectation_loss: %2f, r: %f, Total loss: %2f'
-    #             % (epoch, niter, time.time()-t0, Lambda_tv, loss_kl, loss_tv, loss_expectation, unet3d.r, loss_total))
+    FINE = unet3d(rdf_inputs)[:, 0, ...]
+    FINE = np.squeeze(np.asarray(FINE.cpu().detach()))
 
-    #         loss_iters[epoch-1] = loss_total
-
-    #         if epoch % 10 == 0:
-    #             unet3d.eval()
-
-    #             stds = unet3d(rdfs)[:, 1, ...]
-    #             STD = np.squeeze(np.asarray(stds.cpu().detach()))
-    #             adict = {}
-    #             adict['STD'] = STD
-    #             sio.savemat(rootDir+'/STD_f_{0}.mat'.format(epoch), adict)
-
-    # unet3d.eval()
-
-    # means = unet3d(rdfs)[:, 0, ...]
-    # stds = unet3d(rdfs)[:, 1, ...]
-    # QSM = np.squeeze(np.asarray(means.cpu().detach()))
-    # STD = np.squeeze(np.asarray(stds.cpu().detach()))
-
-    # adict = {}
-    # adict['QSM'] = QSM
-    # if flag_init == 0:
-    #     sio.savemat(rootDir+'/QSM_f.mat', adict)
-    # else:
-    #     sio.savemat(rootDir+'/QSM_VI_f.mat', adict)
+    adict = {}
+    adict['FINE'] = FINE
+    sio.savemat(rootDir+'/FINE{}.mat'.format(flag_init), adict)
