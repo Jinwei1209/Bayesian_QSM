@@ -23,7 +23,8 @@ def BayesianQSM_train(
     voxel_size,
     flag_l1=0,
     K=1,
-    flag_linear=1
+    flag_linear=1,
+    flag_test=0
 ):
 
     optimizer.zero_grad()
@@ -76,10 +77,13 @@ def BayesianQSM_train(
         errGrad = errl1_grad + errModel_grad
 
         err = errl1 + errModel + 0.1*errGrad
-        err.backward()
-        optimizer.step()
 
-        return err.item()
+        if flag_test:
+            return err.item()
+        else:
+            err.backward()
+            optimizer.step()
+            return err.item()
 
 
 def utfi_train(

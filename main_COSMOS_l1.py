@@ -81,7 +81,7 @@ if __name__ == '__main__':
     # network
     unet3d = Unet(
         input_channels=1, 
-        output_channels=2, 
+        output_channels=1, 
         num_filters=[2**i for i in range(5, 10)],  # or range(3, 8)
         use_deconv=1,
         flag_rsa=opt['flag_rsa']
@@ -190,7 +190,26 @@ if __name__ == '__main__':
                 qsms = (qsms.to(device, dtype=torch.float) + trans) * scale
                 outputs = unet3d(rdfs)
 
-                loss_total += loss_L1(outputs[:, 0:1, ...], qsms)
+                # loss_total += loss_L1(outputs[:, 0:1, ...], qsms)
+
+                loss_l1 = BayesianQSM_train(
+                    model=unet3d,
+                    input_RDFs=rdfs,
+                    in_loss_RDFs=rdfs,
+                    QSMs=qsms,
+                    Masks=masks,
+                    fidelity_Ws=0,
+                    gradient_Ws=0,
+                    D=D,
+                    flag_COSMOS=1,
+                    optimizer=optimizer,
+                    sigma_sq=0,
+                    Lambda_tv=0,
+                    voxel_size=voxel_size,
+                    flag_l1=1,
+                    flag_test=1
+                )
+                loss_total += loss_l1
 
             print('\n Validation loss: %f \n' % (loss_total / idx))
             Validation_loss.append(loss_total / idx)
