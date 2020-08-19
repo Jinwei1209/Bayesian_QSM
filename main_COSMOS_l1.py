@@ -34,6 +34,7 @@ if __name__ == '__main__':
     parser.add_argument('--flag_rsa', type=int, default=-1)
     parser.add_argument('--case_validation', type=int, default=6)
     parser.add_argument('--case_test', type=int, default=7)
+    parser.add_argument('--linear_factor', type=int, default=1)
     parser.add_argument('--weight_dir', type=str, default='weight_cv')
     opt = {**vars(parser.parse_args())}
 
@@ -106,16 +107,17 @@ if __name__ == '__main__':
     logger = Logger('logs', rootDir, opt['flag_rsa'], opt['case_validation'], opt['case_test'])
 
     # dataloader
-    # dataLoader_train = COSMOS_data_loader(
-    #     split='Train',
-    #     patchSize=patchSize,
-    #     extraction_step=extraction_step,
-    #     voxel_size=voxel_size,
-    #     case_validation=opt['case_validation'],
-    #     case_test=opt['case_test'],
-    #     flag_smv=flag_smv,
-    #     flag_gen=flag_gen)
-    # trainLoader = data.DataLoader(dataLoader_train, batch_size=batch_size, shuffle=True, pin_memory=True)
+    dataLoader_train = COSMOS_data_loader(
+        split='Train',
+        patchSize=patchSize,
+        extraction_step=extraction_step,
+        voxel_size=voxel_size,
+        case_validation=opt['case_validation'],
+        case_test=opt['case_test'],
+        flag_smv=flag_smv,
+        flag_gen=flag_gen,
+        linear_factor=opt['linear_factor'])
+    trainLoader = data.DataLoader(dataLoader_train, batch_size=batch_size, shuffle=True, pin_memory=True)
 
     dataLoader_val = COSMOS_data_loader(
         split='Val',
@@ -125,11 +127,12 @@ if __name__ == '__main__':
         case_validation=opt['case_validation'],
         case_test=opt['case_test'],
         flag_smv=flag_smv,
-        flag_gen=flag_gen)
+        flag_gen=flag_gen,
+        linear_factor=opt['linear_factor'])
     valLoader = data.DataLoader(dataLoader_val, batch_size=batch_size, shuffle=True, pin_memory=True)
 
-    dataLoader_train = dataLoader_val
-    trainLoader = valLoader
+    # dataLoader_train = dataLoader_val
+    # trainLoader = valLoader
 
     epoch = 0
     gen_iterations = 1
