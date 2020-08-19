@@ -76,7 +76,7 @@ class Patient_data_loader(data.Dataset):
 
         filename = '{0}/RDF.mat'.format(dataDir)
         RDF = np.real(load_mat(filename, varname='RDF'))
-        RDF_input = RDF/factor
+        RDF_input = np.real(RDF*Mask)/factor
         RDF = RDF - SMV(RDF, volume_size, voxel_size, radius)
         RDF = np.real(RDF*Mask)/factor
 
