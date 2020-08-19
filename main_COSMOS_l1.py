@@ -25,8 +25,8 @@ if __name__ == '__main__':
     batch_size = 32
     flag_smv = 1
     flag_gen = 1
-    trans = 0.15
-    scale = 3
+    trans = 0  # 0.15
+    scale = 1  # 3
 
     # typein parameters
     parser = argparse.ArgumentParser(description='Deep Learning QSM')
@@ -188,6 +188,7 @@ if __name__ == '__main__':
                 idx += 1
                 rdfs = (rdfs.to(device, dtype=torch.float) + trans) * scale
                 qsms = (qsms.to(device, dtype=torch.float) + trans) * scale
+                masks = masks.to(device, dtype=torch.float)
                 outputs = unet3d(rdfs)
 
                 # loss_total += loss_L1(outputs[:, 0:1, ...], qsms)
