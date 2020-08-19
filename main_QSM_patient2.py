@@ -102,7 +102,7 @@ if __name__ == '__main__':
                 unet3d.eval()
 
                 QSMnet = unet3d(rdf_inputs)[:, 0, ...]
-                QSMnet = np.squeeze(np.asarray(qsmnet.cpu().detach()))
+                QSMnet = np.squeeze(np.asarray(QSMnet.cpu().detach()))
 
                 print('Saving initial results')
                 adict = {}
