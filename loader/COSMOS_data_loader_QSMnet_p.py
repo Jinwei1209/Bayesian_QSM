@@ -127,7 +127,7 @@ class COSMOS_data_loader(data.Dataset):
                         patches_MASKs.append(patches_MASK)
                         patches_QSMs.append(-patches_QSM)
 
-                if self.flag_gen:
+                if self.flag_gen and self.linear_factor > 1:
                     print('Augment data using linearity')
                     D = dipole_kernel(matrix_size, voxel_size, B0_dir)
                     QSM_dir[Mask_dir > 0] = QSM_dir[Mask_dir > 0] * self.linear_factor
