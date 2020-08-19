@@ -15,6 +15,9 @@ from utils.medi import *
 from utils.loss import *
 from utils.files import *
 
+'''
+    Patient test for Bayesian QSM project
+'''
 if __name__ == '__main__':
 
     # typein parameters

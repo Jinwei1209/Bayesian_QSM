@@ -222,4 +222,4 @@ if __name__ == '__main__':
         % (epoch, niter, Validation_loss[-1]))
 
         if Validation_loss[-1] == min(Validation_loss):
-            torch.save(unet3d.state_dict(), rootDir+'/weights_rsa={0}_validation={1}_test={2}'.format(opt['linear_factor'], opt['case_validation'], opt['case_test'])+'.pt')
+            torch.save(unet3d.state_dict(), rootDir+'/linear_factor={0}_validation={1}_test={2}'.format(opt['linear_factor'], opt['case_validation'], opt['case_test'])+'.pt')

@@ -14,11 +14,13 @@ class Patient_data_loader(data.Dataset):
         self,
         dataFolder = '/data/Jinwei/Bayesian_QSM/Data_with_N_std/20190920_MEDI_3mm',
         patientType='ICH',
-        patientID=1
+        patientID=1,
+        flag_input=0,  # flag for rdf input, 0: smv input, 1: non-smv input
     ):
         self.patientType = patientType
         self.patientID = patientType + str(patientID)
         self.dataFolder = dataFolder
+        self.flag_input = flag_input
         if patientType == 'ICH':
             print('Loading ICH data: {0}'.format(patientID))
             voxel_size = [0.937500, 0.937500, 2.8]  # hemo cases
@@ -74,10 +76,12 @@ class Patient_data_loader(data.Dataset):
 
         filename = '{0}/RDF.mat'.format(dataDir)
         RDF = np.real(load_mat(filename, varname='RDF'))
+        RDF_input = RDF/factor
         RDF = RDF - SMV(RDF, volume_size, voxel_size, radius)
         RDF = np.real(RDF*Mask)/factor
 
         self.RDF = RDF[np.newaxis, np.newaxis, ...]
+        self.RDF_input = RDF_input[np.newaxis, np.newaxis, ...]
         self.Mask = Mask[np.newaxis, np.newaxis, ...]
         self.Data_weights = Data_weights[np.newaxis, np.newaxis, ...]
         self.wG = wG[np.newaxis, np.newaxis, ...]
@@ -86,7 +90,10 @@ class Patient_data_loader(data.Dataset):
         return 1
 
     def __getitem__(self, idx):
-        return self.RDF[idx], self.Mask[idx], self.Data_weights[idx], self.wG[idx] 
+        if self.flag_input:
+            return self.RDF_input[idx], self.RDF[idx], self.Mask[idx], self.Data_weights[idx], self.wG[idx]
+        else:
+            return self.RDF[idx], self.Mask[idx], self.Data_weights[idx], self.wG[idx] 
 
 
     
