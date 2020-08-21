@@ -103,11 +103,11 @@ if __name__ == '__main__':
         # training phase
         for idx, (rdf_inputs, rdfs, masks, weights, wGs) in enumerate(trainLoader):
             
-            rdf_inputs = rdf_inputs.to('cuda', dtype=torch.float)
-            rdfs = rdfs.to('cuda', dtype=torch.float)
-            masks = masks.to('cuda', dtype=torch.float)
-            weights = weights.to('cuda', dtype=torch.float)
-            wGs = wGs.to('cuda', dtype=torch.float)
+            rdf_inputs = rdf_inputs.to(device0, dtype=torch.float)
+            rdfs = rdfs.to(device0, dtype=torch.float)
+            masks = masks.to(device0, dtype=torch.float)
+            weights = weights.to(device0, dtype=torch.float)
+            wGs = wGs.to(device0, dtype=torch.float)
 
             if epoch == 1:
                 unet3d.eval()
@@ -121,6 +121,10 @@ if __name__ == '__main__':
 
                 if opt['flag_resnet']:
                     rdf_inputs = resnet_input.to(device1, dtype=torch.float)
+                    rdfs = rdfs.to(device1, dtype=torch.float)
+                    masks = masks.to(device1, dtype=torch.float)
+                    weights = weights.to(device1, dtype=torch.float)
+                    wGs = wGs.to(device1, dtype=torch.float)
 
             loss_fidelity = BayesianQSM_train(
                 model=model,
