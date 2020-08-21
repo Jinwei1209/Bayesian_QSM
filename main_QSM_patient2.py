@@ -93,7 +93,7 @@ if __name__ == '__main__':
         model = resnet
 
     # optimizer
-    optimizer = optim.Adam(resnet.parameters(), lr=lr, betas=(0.5, 0.999))
+    optimizer = optim.Adam(model.parameters(), lr=lr, betas=(0.5, 0.999))
 
     epoch = 0
     loss_iters = np.zeros(niter)
@@ -127,7 +127,7 @@ if __name__ == '__main__':
                 wGs = wGs.to(device1, dtype=torch.float)
 
             loss_fidelity = BayesianQSM_train(
-                model=resnet,
+                model=model,
                 input_RDFs=rdf_inputs,
                 in_loss_RDFs=rdfs,
                 QSMs=0,
