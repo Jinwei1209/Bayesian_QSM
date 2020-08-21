@@ -18,6 +18,9 @@ from utils.medi import *
 from utils.loss import *
 from utils.files import *
 
+'''
+    train the resnet based on a pre-trained unet
+'''
 if __name__ == '__main__':
 
     # default parameters
@@ -112,18 +115,18 @@ if __name__ == '__main__':
     # logger
     logger = Logger('logs', rootDir, opt['linear_factor'], opt['case_validation'], opt['case_test'])
 
-    # # dataloader
-    # dataLoader_train = COSMOS_data_loader(
-    #     split='Train',
-    #     patchSize=patchSize,
-    #     extraction_step=extraction_step,
-    #     voxel_size=voxel_size,
-    #     case_validation=opt['case_validation'],
-    #     case_test=opt['case_test'],
-    #     flag_smv=flag_smv,
-    #     flag_gen=flag_gen,
-    #     linear_factor=opt['linear_factor'])
-    # trainLoader = data.DataLoader(dataLoader_train, batch_size=batch_size, shuffle=True, pin_memory=True)
+    # dataloader
+    dataLoader_train = COSMOS_data_loader(
+        split='Train',
+        patchSize=patchSize,
+        extraction_step=extraction_step,
+        voxel_size=voxel_size,
+        case_validation=opt['case_validation'],
+        case_test=opt['case_test'],
+        flag_smv=flag_smv,
+        flag_gen=flag_gen,
+        linear_factor=opt['linear_factor'])
+    trainLoader = data.DataLoader(dataLoader_train, batch_size=batch_size, shuffle=True, pin_memory=True)
 
     dataLoader_val = COSMOS_data_loader(
         split='Val',
@@ -137,8 +140,8 @@ if __name__ == '__main__':
         linear_factor=opt['linear_factor'])
     valLoader = data.DataLoader(dataLoader_val, batch_size=batch_size, shuffle=True, pin_memory=True)
 
-    dataLoader_train = dataLoader_val
-    trainLoader = valLoader
+    # dataLoader_train = dataLoader_val
+    # trainLoader = valLoader
 
     epoch = 0
     gen_iterations = 1
