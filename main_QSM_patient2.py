@@ -35,11 +35,6 @@ if __name__ == '__main__':
     patientID = opt['patientID']
     flag_init = opt['flag_init']
 
-    if patient_type == 'ICH':
-        folder_weights_VI = '/weights_VI'
-    elif patient_type == 'MS_old' or 'MS_new':
-        folder_weights_VI = '/weights_VI2'
-
     os.environ['CUDA_VISIBLE_DEVICES'] = opt['gpu_id'] 
     t0 = time.time()
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -77,9 +72,9 @@ if __name__ == '__main__':
     )
     unet3d.to(device)
     if flag_init == 0:
-        weights_dict = torch.load(rootDir+'/weight_qsmnet_p/linear_factor=1_validation=6_test=7.pt')
+        weights_dict = torch.load(rootDir+'/weight_qsmnet_p2/linear_factor=1_validation=6_test=7.pt')
     else:
-        weights_dict = torch.load(rootDir+'/weight_qsmnet_p/linear_factor=4_validation=6_test=7.pt')
+        weights_dict = torch.load(rootDir+'/weight_qsmnet_p2/linear_factor=4_validation=6_test=7.pt')
     unet3d.load_state_dict(weights_dict)
     model = unet3d
 
@@ -90,7 +85,7 @@ if __name__ == '__main__':
             output_dim=1, 
         )
         resnet.to(device)
-        weights_dict = torch.load(rootDir+'/linear_factor=1_validation=6_test=7_resnet.pt')
+        weights_dict = torch.load(rootDir+'/weight_qsmnet_p2/linear_factor=1_validation=6_test=7_resnet.pt')
         resnet.load_state_dict(weights_dict)
         resnet.eval()
         model = resnet
