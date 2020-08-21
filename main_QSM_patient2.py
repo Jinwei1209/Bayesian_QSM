@@ -118,8 +118,9 @@ if __name__ == '__main__':
                 adict['QSMnet'] = QSMnet
                 sio.savemat(rootDir+'/QSMnet{}.mat'.format(flag_init), adict)
 
-            if opt['flag_resnet']:
-                rdf_inputs = resnet_input
+                if opt['flag_resnet']:
+                    rdf_inputs = resnet_input
+                    del unet3d
 
             loss_fidelity = BayesianQSM_train(
                 model=model,
