@@ -44,7 +44,6 @@ class ResBlock(nn.Module):
         return basicBlock
 
     def forward(self, x):
-        print(x.get_device())
         x = self.basicBlock1(x)
         x = self.basicBlock2(x) + x
         x = self.basicBlock3(x) + x

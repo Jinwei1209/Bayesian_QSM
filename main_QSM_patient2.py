@@ -119,14 +119,13 @@ if __name__ == '__main__':
                 adict['QSMnet'] = QSMnet
                 sio.savemat(rootDir+'/QSMnet{}.mat'.format(flag_init), adict)
 
-                if opt['flag_resnet']:
-                    rdf_inputs = resnet_input.to(device1, dtype=torch.float)
-                    rdfs = rdfs.to(device1, dtype=torch.float)
-                    masks = masks.to(device1, dtype=torch.float)
-                    weights = weights.to(device1, dtype=torch.float)
-                    wGs = wGs.to(device1, dtype=torch.float)
+            if opt['flag_resnet']:
+                rdf_inputs = resnet_input.to(device1, dtype=torch.float)
+                rdfs = rdfs.to(device1, dtype=torch.float)
+                masks = masks.to(device1, dtype=torch.float)
+                weights = weights.to(device1, dtype=torch.float)
+                wGs = wGs.to(device1, dtype=torch.float)
 
-            print(weights.get_device())
             loss_fidelity = BayesianQSM_train(
                 model=model,
                 input_RDFs=rdf_inputs,
