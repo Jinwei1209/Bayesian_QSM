@@ -126,6 +126,7 @@ if __name__ == '__main__':
                     weights = weights.to(device1, dtype=torch.float)
                     wGs = wGs.to(device1, dtype=torch.float)
 
+            print(model.get_device())
             loss_fidelity = BayesianQSM_train(
                 model=model,
                 input_RDFs=rdf_inputs,
