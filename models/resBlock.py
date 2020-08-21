@@ -41,7 +41,6 @@ class ResBlock(nn.Module):
         layers.append(nn.BatchNorm3d(output_dim))
         layers.append(nn.ReLU(inplace=True))
         basicBlock = nn.Sequential(*layers)
-        basicBlock.apply(init_weights)
         return basicBlock
 
     def forward(self, x):
