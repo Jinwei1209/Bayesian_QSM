@@ -93,7 +93,7 @@ if __name__ == '__main__':
         model = resnet
 
     # optimizer
-    optimizer = optim.Adam(model.parameters(), lr=lr, betas=(0.5, 0.999))
+    optimizer = optim.Adam(resnet.parameters(), lr=lr, betas=(0.5, 0.999))
 
     epoch = 0
     loss_iters = np.zeros(niter)
