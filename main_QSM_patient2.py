@@ -23,6 +23,7 @@ if __name__ == '__main__':
     # typein parameters
     parser = argparse.ArgumentParser(description='Deep Learning QSM')
     parser.add_argument('--gpu_id', type=str, default='0')
+    parser.add_argument('--flag_resnet', type=int, default=0)  # 0 for unet, 1 for resnet
     parser.add_argument('--flag_init', type=int, default=0)  # 0 for linear_factor=1, 1 for linear_factor=4
     parser.add_argument('--patient_type', type=str, default='ICH')  # or MS_old, MS_new
     parser.add_argument('--patientID', type=int, default=8)
@@ -80,9 +81,22 @@ if __name__ == '__main__':
     else:
         weights_dict = torch.load(rootDir+'/weight_qsmnet_p/linear_factor=4_validation=6_test=7.pt')
     unet3d.load_state_dict(weights_dict)
+    model = unet3d
+
+    if opt['flag_resnet']:
+        resnet = ResBlock(
+            input_dim=1, 
+            filter_dim=32,
+            output_dim=1, 
+        )
+        resnet.to(device)
+        weights_dict = torch.load(rootDir+'/linear_factor=1_validation=6_test=7_resnet.pt')
+        resnet.load_state_dict(weights_dict)
+        resnet.eval()
+        model = resnet
 
     # optimizer
-    optimizer = optim.Adam(unet3d.parameters(), lr=lr, betas=(0.5, 0.999))
+    optimizer = optim.Adam(model.parameters(), lr=lr, betas=(0.5, 0.999))
 
     epoch = 0
     loss_iters = np.zeros(niter)
@@ -100,17 +114,19 @@ if __name__ == '__main__':
 
             if epoch == 1:
                 unet3d.eval()
-
-                QSMnet = unet3d(rdf_inputs)[:, 0, ...]
+                QSMnet = unet3d(rdf_inputs)
+                resnet_input = QSMnet
                 QSMnet = np.squeeze(np.asarray(QSMnet.cpu().detach()))
-
                 print('Saving initial results')
                 adict = {}
                 adict['QSMnet'] = QSMnet
                 sio.savemat(rootDir+'/QSMnet{}.mat'.format(flag_init), adict)
 
+            if opt['flag_resnet']:
+                rdf_inputs = resnet_input
+
             loss_fidelity = BayesianQSM_train(
-                model=unet3d,
+                model=model,
                 input_RDFs=rdf_inputs,
                 in_loss_RDFs=rdfs,
                 QSMs=0,
