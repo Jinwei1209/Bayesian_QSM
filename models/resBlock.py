@@ -14,7 +14,7 @@ class ResBlock(nn.Module):
         padding=1
     ):
 
-        super(ResBlock2, self).__init__()
+        super(ResBlock, self).__init__()
         self.layers = []
         self.input_dim = input_dim
         self.output_dim = output_dim
