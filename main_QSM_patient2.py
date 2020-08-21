@@ -78,7 +78,7 @@ if __name__ == '__main__':
     else:
         weights_dict = torch.load(rootDir+'/weight_qsmnet_p2/linear_factor=4_validation=6_test=7.pt')
     unet3d.load_state_dict(weights_dict)
-    model = unet3d
+    # model = unet3d
 
     if opt['flag_resnet']:
         resnet = ResBlock(
@@ -93,7 +93,7 @@ if __name__ == '__main__':
         model = resnet
 
     # optimizer
-    optimizer = optim.Adam(model.parameters(), lr=lr, betas=(0.5, 0.999))
+    optimizer = optim.Adam(unet3d.parameters(), lr=lr, betas=(0.5, 0.999))
 
     epoch = 0
     loss_iters = np.zeros(niter)
@@ -127,7 +127,7 @@ if __name__ == '__main__':
                 wGs = wGs.to(device1, dtype=torch.float)
 
             loss_fidelity = BayesianQSM_train(
-                model=model,
+                model=unet3d,
                 input_RDFs=rdf_inputs,
                 in_loss_RDFs=rdfs,
                 QSMs=0,
