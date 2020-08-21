@@ -120,7 +120,7 @@ if __name__ == '__main__':
 
                 if opt['flag_resnet']:
                     rdf_inputs = resnet_input
-                    del unet3d
+                    unet3d=unet3d.cpu()
 
             loss_fidelity = BayesianQSM_train(
                 model=model,
