@@ -71,7 +71,7 @@ if __name__ == '__main__':
         use_deconv=1,
         flag_rsa=0
     )
-    unet3d.to(device)
+    # unet3d.to(device)
     if flag_init == 0:
         weights_dict = torch.load(rootDir+'/weight_qsmnet_p2/linear_factor=1_validation=6_test=7.pt')
     else:
@@ -120,7 +120,7 @@ if __name__ == '__main__':
 
                 if opt['flag_resnet']:
                     rdf_inputs = resnet_input
-                    unet3d=unet3d.cpu()
+                    unet3d = unet3d.cpu()
 
             loss_fidelity = BayesianQSM_train(
                 model=model,
