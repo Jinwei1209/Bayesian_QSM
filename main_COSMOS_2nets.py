@@ -99,7 +99,7 @@ if __name__ == '__main__':
     resnet.to(device)
     
     # initialize Pre-trained Unet
-    weights_dict = torch.load(rootDir+'/weight_qsmnet_p/linear_factor=1_validation=6_test=7.pt')
+    weights_dict = torch.load(rootDir+'/linear_factor=1_validation=6_test=7.pt')
     unet3d.load_state_dict(weights_dict)
     unet3d.eval()
 
