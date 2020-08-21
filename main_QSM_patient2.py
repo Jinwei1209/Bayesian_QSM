@@ -23,7 +23,7 @@ if __name__ == '__main__':
 
     # typein parameters
     parser = argparse.ArgumentParser(description='Deep Learning QSM')
-    parser.add_argument('--gpu_id', type=str, default='0')
+    parser.add_argument('--gpu_id', type=str, default='0,1')
     parser.add_argument('--flag_resnet', type=int, default=0)  # 0 for unet, 1 for resnet
     parser.add_argument('--flag_init', type=int, default=0)  # 0 for linear_factor=1, 1 for linear_factor=4
     parser.add_argument('--patient_type', type=str, default='ICH')  # or MS_old, MS_new
@@ -38,7 +38,8 @@ if __name__ == '__main__':
 
     os.environ['CUDA_VISIBLE_DEVICES'] = opt['gpu_id'] 
     t0 = time.time()
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device0 = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    device1 = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
     rootDir = '/data/Jinwei/Bayesian_QSM'
 
     # dataloader
@@ -71,7 +72,7 @@ if __name__ == '__main__':
         use_deconv=1,
         flag_rsa=0
     )
-    # unet3d.to(device)
+    unet3d.to(device0)
     if flag_init == 0:
         weights_dict = torch.load(rootDir+'/weight_qsmnet_p2/linear_factor=1_validation=6_test=7.pt')
     else:
@@ -85,7 +86,7 @@ if __name__ == '__main__':
             filter_dim=32,
             output_dim=1, 
         )
-        resnet.to(device)
+        resnet.to(device1)
         weights_dict = torch.load(rootDir+'/weight_qsmnet_p2/linear_factor=1_validation=6_test=7_resnet.pt')
         resnet.load_state_dict(weights_dict)
         resnet.eval()
@@ -102,11 +103,11 @@ if __name__ == '__main__':
         # training phase
         for idx, (rdf_inputs, rdfs, masks, weights, wGs) in enumerate(trainLoader):
             
-            rdf_inputs = rdf_inputs.to(device, dtype=torch.float)
-            rdfs = rdfs.to(device, dtype=torch.float)
-            masks = masks.to(device, dtype=torch.float)
-            weights = weights.to(device, dtype=torch.float)
-            wGs = wGs.to(device, dtype=torch.float)
+            rdf_inputs = rdf_inputs.to('cuda', dtype=torch.float)
+            rdfs = rdfs.to('cuda', dtype=torch.float)
+            masks = masks.to('cuda', dtype=torch.float)
+            weights = weights.to('cuda', dtype=torch.float)
+            wGs = wGs.to('cuda', dtype=torch.float)
 
             if epoch == 1:
                 unet3d.eval()
