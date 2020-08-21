@@ -23,7 +23,7 @@ if __name__ == '__main__':
     # default parameters
     niter = 100
     lr = 1e-3
-    batch_size = 24
+    batch_size = 16
     flag_smv = 1
     flag_gen = 1
     trans = 0  # 0.15
