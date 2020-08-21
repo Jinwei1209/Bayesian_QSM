@@ -127,7 +127,7 @@ if __name__ == '__main__':
                 wGs = wGs.to(device1, dtype=torch.float)
 
             loss_fidelity = BayesianQSM_train(
-                model=model,
+                model=resnet,
                 input_RDFs=rdf_inputs,
                 in_loss_RDFs=rdfs,
                 QSMs=0,
