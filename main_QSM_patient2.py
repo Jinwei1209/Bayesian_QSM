@@ -10,6 +10,7 @@ from torch.utils import data
 from loader.Patient_data_loader import Patient_data_loader
 from loader.Patient_data_loader_all import Patient_data_loader_all
 from models.unet import Unet
+from models.resBlock import ResBlock
 from utils.train import BayesianQSM_train
 from utils.medi import *
 from utils.loss import *
