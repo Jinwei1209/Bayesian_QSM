@@ -102,6 +102,54 @@ def loss_Expectation(
         loss_tv = Lambda_tv*torch.sum(torch.abs(gradient_Ws*grad))/(2*mean_Maps.size()[0])
         return loss, loss_tv
 
+def loss_QSMnet(outputs, QSMs, Masks, D):
+    # l1 loss
+    loss = lossL1()
+    outputs = outputs[:, 0:1, ...]
+    device = outputs.get_device()
+    
+    outputs_cplx = torch.zeros(*(outputs.size()+(2,))).to(device)
+    outputs_cplx[..., 0] = outputs
+
+    QSMs_cplx = torch.zeros(*(QSMs.size()+(2,))).to(device)
+    QSMs_cplx[..., 0] = QSMs
+
+    D = np.repeat(D[np.newaxis, np.newaxis, ..., np.newaxis], outputs.size()[0], axis=0)
+    D_cplx = np.concatenate((D, np.zeros(D.shape)), axis=-1)
+    D_cplx = torch.tensor(D_cplx, device=device).float()
+
+    RDFs_outputs = torch.ifft(cplx_mlpy(torch.fft(outputs_cplx, 3), D_cplx), 3)
+    RDFs_QSMs = torch.ifft(cplx_mlpy(torch.fft(QSMs_cplx, 3), D_cplx), 3)
+
+    errl1 = loss(outputs*Masks, QSMs*Masks)
+    errModel = loss(RDFs_outputs[..., 0]*Masks, RDFs_QSMs[..., 0]*Masks)
+    errl1_grad = loss(abs(dxp(outputs))*Masks, abs(dxp(QSMs))*Masks) + loss(abs(dyp(outputs))*Masks, abs(dyp(QSMs))*Masks) + loss(abs(dzp(outputs))*Masks, abs(dzp(QSMs))*Masks)
+    errModel_grad = loss(abs(dxp(RDFs_outputs[..., 0]))*Masks, abs(dxp(RDFs_QSMs[..., 0]))*Masks) + loss(abs(dyp(RDFs_outputs[..., 0]))*Masks, abs(dyp(RDFs_QSMs[..., 0]))*Masks) + loss(abs(dzp(RDFs_outputs[..., 0]))*Masks, abs(dzp(RDFs_QSMs[..., 0]))*Masks)
+    errGrad = errl1_grad + errModel_grad
+    return errl1 + errModel + 0.1*errGrad
+
+def loss_FINE(outputs, in_loss_RDFs, fidelity_Ws, D):
+    outputs = outputs[:, 0:1, ...]
+    device = outputs.get_device()
+    
+    outputs_cplx = torch.zeros(*(outputs.size()+(2,))).to(device)
+    outputs_cplx[..., 0] = outputs
+
+    D = np.repeat(D[np.newaxis, np.newaxis, ..., np.newaxis], outputs.size()[0], axis=0)
+    D_cplx = np.concatenate((D, np.zeros(D.shape)), axis=-1)
+    D_cplx = torch.tensor(D_cplx, device=device).float()
+
+    RDFs_outputs = torch.ifft(cplx_mlpy(torch.fft(outputs_cplx, 3), D_cplx), 3)
+
+    in_loss_RDFs_cplx = torch.zeros(*(outputs.size()+(2,))).to(device)
+    in_loss_RDFs_cplx[..., 0] = in_loss_RDFs
+
+    fidelity_Ws_cplx = torch.zeros(*(outputs.size()+(2,))).to(device)
+    fidelity_Ws_cplx[..., 0] = fidelity_Ws
+    diff = torch.abs(in_loss_RDFs_cplx - RDFs_outputs)
+    return torch.sum((fidelity_Ws_cplx*diff)**2)
+
+
 # tile torch tensor, each item in the dimension will be repeated K times before concatenate together
 def tile(a, dim, n_tile):
     device = a.get_device()
