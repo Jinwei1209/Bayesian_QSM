@@ -31,7 +31,7 @@ if __name__ == '__main__':
     # typein parameters
     parser = argparse.ArgumentParser(description='Deep Learning QSM')
     parser.add_argument('--gpu_id', type=str, default='0')
-    parser.add_argument('--flag_rsa', type=int, default=-1)
+    parser.add_argument('--flag_rsa', type=int, default=0)
     parser.add_argument('--case_validation', type=int, default=6)
     parser.add_argument('--case_test', type=int, default=7)
     parser.add_argument('--linear_factor', type=int, default=1)
@@ -91,7 +91,7 @@ if __name__ == '__main__':
     #     input_channels=1, 
     #     output_channels=2, 
     #     num_filters=[2**i for i in range(5, 10)],  # or range(3, 8)
-    #     use_deconv=1,
+    #     use_deconv=1,s
     #     flag_rsa=opt['flag_rsa']
     # ) 
 

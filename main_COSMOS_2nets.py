@@ -26,7 +26,7 @@ if __name__ == '__main__':
     # default parameters
     niter = 100
     lr = 1e-3
-    batch_size = 16
+    batch_size = 30
     flag_smv = 1
     flag_gen = 1
     trans = 0  # 0.15
@@ -35,7 +35,7 @@ if __name__ == '__main__':
     # typein parameters
     parser = argparse.ArgumentParser(description='Deep Learning QSM')
     parser.add_argument('--gpu_id', type=str, default='0')
-    parser.add_argument('--flag_rsa', type=int, default=-1)
+    parser.add_argument('--flag_rsa', type=int, default=0)
     parser.add_argument('--case_validation', type=int, default=6)
     parser.add_argument('--case_test', type=int, default=7)
     parser.add_argument('--linear_factor', type=int, default=1)
@@ -100,17 +100,12 @@ if __name__ == '__main__':
 
     unet3d.to(device)
     resnet.to(device)
-    
-    # initialize Pre-trained Unet
-    weights_dict = torch.load(rootDir+'/linear_factor=1_validation=6_test=7.pt')
-    unet3d.load_state_dict(weights_dict)
-    unet3d.eval()
 
     # optimizer
-    optimizer = optim.Adam(resnet.parameters(), lr = lr, betas=(0.5, 0.999))
+    optimizer = optim.Adam(list(unet3d.parameters()) + list(resnet.parameters()), lr = lr, betas=(0.5, 0.999))
     ms = [0.3, 0.5, 0.7, 0.9]
     ms = [np.floor(m * niter).astype(int) for m in ms]
-    scheduler = MultiStepLR(optimizer, milestones = ms, gamma = 0.5)
+    scheduler = MultiStepLR(optimizer, milestones = ms, gamma = 0.2)
 
     # logger
     logger = Logger('logs', rootDir, opt['linear_factor'], opt['case_validation'], opt['case_test'])
@@ -146,7 +141,7 @@ if __name__ == '__main__':
     epoch = 0
     gen_iterations = 1
     display_iters = 5
-    loss_l1_sum = 0
+    loss1_sum, loss2_sum = 0, 0
     Validation_loss = []
     loss_L1 = lossL1()
 
@@ -154,47 +149,39 @@ if __name__ == '__main__':
         epoch += 1
 
         # training phase
-        resnet.train()
+        unet3d.train(), resnet.train()
         for idx, (rdfs, masks, qsms) in enumerate(trainLoader):
             if gen_iterations%display_iters == 0:
                 print('epochs: [%d/%d], batchs: [%d/%d], time: %ds, case_validation: %f'
                     % (epoch, niter, idx, dataLoader_train.num_samples//batch_size+1, time.time()-t0, opt['case_validation']))
-                print('L1_loss: %f' % (loss_l1_sum/display_iters))
+                print('loss1: %f, loss2: %f' % (loss1_sum/display_iters, loss2_sum/display_iters))
                 if epoch > 1:
                     print('Validation loss of last epoch: %f' % (Validation_loss[-1]))
 
-                loss_l1_sum = 0
+                loss1_sum, loss2_sum = 0, 0
 
             rdfs = (rdfs.to(device, dtype=torch.float) + trans) * scale
             qsms = (qsms.to(device, dtype=torch.float) + trans) * scale
             masks = masks.to(device, dtype=torch.float)
 
-            qsm_unet3d = unet3d(rdfs)
+            outputs1 = unet3d(rdfs)
+            outputs2 = resnet(outputs1)
+            loss1 = loss_QSMnet(outputs1, qsms, masks, D)
+            loss2 = loss_QSMnet(outputs2, qsms, masks, D)
+            loss = loss1 + loss2
 
-            loss_l1 = BayesianQSM_train(
-                model=resnet,
-                input_RDFs=qsm_unet3d,
-                in_loss_RDFs=qsm_unet3d,
-                QSMs=qsms,
-                Masks=masks,
-                fidelity_Ws=0,
-                gradient_Ws=0,
-                D=D,
-                flag_COSMOS=1,
-                optimizer=optimizer,
-                sigma_sq=0,
-                Lambda_tv=0,
-                voxel_size=voxel_size,
-                flag_l1=1
-            )
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
-            loss_l1_sum += loss_l1
+            loss1_sum += loss1
+            loss2_sum += loss2
             gen_iterations += 1
 
         scheduler.step(epoch)
 
         # validation phase
-        resnet.eval()
+        resnet.eval(), unet3d.eval()
         loss_total = 0
         idx = 0
         with torch.no_grad():  # to solve memory exploration issue
@@ -204,26 +191,12 @@ if __name__ == '__main__':
                 qsms = (qsms.to(device, dtype=torch.float) + trans) * scale
                 masks = masks.to(device, dtype=torch.float)
 
-                qsm_unet3d = unet3d(rdfs)
-
-                loss_l1 = BayesianQSM_train(
-                    model=resnet,
-                    input_RDFs=qsm_unet3d,
-                    in_loss_RDFs=qsm_unet3d,
-                    QSMs=qsms,
-                    Masks=masks,
-                    fidelity_Ws=0,
-                    gradient_Ws=0,
-                    D=D,
-                    flag_COSMOS=1,
-                    optimizer=optimizer,
-                    sigma_sq=0,
-                    Lambda_tv=0,
-                    voxel_size=voxel_size,
-                    flag_l1=1,
-                    flag_test=1
-                )
-                loss_total += loss_l1
+                outputs1 = unet3d(rdfs)
+                outputs2 = resnet(outputs1)
+                loss1 = loss_QSMnet(outputs1, qsms, masks, D)
+                loss2 = loss_QSMnet(outputs2, qsms, masks, D)
+                loss = loss1 + loss2
+                loss_total += loss
 
             print('\n Validation loss: %f \n' % (loss_total / idx))
             Validation_loss.append(loss_total / idx)
@@ -232,4 +205,5 @@ if __name__ == '__main__':
         % (epoch, niter, Validation_loss[-1]))
 
         if Validation_loss[-1] == min(Validation_loss):
+            torch.save(resnet.state_dict(), rootDir+'/linear_factor={0}_validation={1}_test={2}_unet3d'.format(opt['linear_factor'], opt['case_validation'], opt['case_test'])+'.pt')
             torch.save(resnet.state_dict(), rootDir+'/linear_factor={0}_validation={1}_test={2}_resnet'.format(opt['linear_factor'], opt['case_validation'], opt['case_test'])+'.pt')

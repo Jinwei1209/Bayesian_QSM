@@ -48,7 +48,7 @@ def BayesianQSM_train(
             return loss_kl.item(), loss_tv.item(), loss_expectation.item()
 
     elif flag_l1 == 1:
-        err = loss_QSMnet(outputs, QSMs, D)
+        err = loss_QSMnet(outputs, QSMs, Masks, D)
         if flag_test:
             return err.item()
         else:

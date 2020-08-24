@@ -23,8 +23,7 @@ if __name__ == '__main__':
 
     # typein parameters
     parser = argparse.ArgumentParser(description='Deep Learning QSM')
-    parser.add_argument('--gpu_id', type=str, default='0,1')
-    parser.add_argument('--flag_resnet', type=int, default=0)  # 0 for unet, 1 for resnet
+    parser.add_argument('--gpu_id', type=str, default='0')
     parser.add_argument('--flag_init', type=int, default=0)  # 0 for linear_factor=1, 1 for linear_factor=4
     parser.add_argument('--patient_type', type=str, default='ICH')  # or MS_old, MS_new
     parser.add_argument('--patientID', type=int, default=8)
@@ -36,10 +35,14 @@ if __name__ == '__main__':
     patientID = opt['patientID']
     flag_init = opt['flag_init']
 
+    if patient_type == 'ICH':
+        folder_weights_VI = '/weights_VI'
+    elif patient_type == 'MS_old' or 'MS_new':
+        folder_weights_VI = '/weights_VI2'
+
     os.environ['CUDA_VISIBLE_DEVICES'] = opt['gpu_id'] 
     t0 = time.time()
-    device0 = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    device1 = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     rootDir = '/data/Jinwei/Bayesian_QSM'
 
     # dataloader
@@ -47,7 +50,7 @@ if __name__ == '__main__':
         patientType=patient_type, 
         patientID=patientID,
         flag_input=1
-        )
+    )
 
     # parameters
     niter = 100
@@ -64,7 +67,7 @@ if __name__ == '__main__':
 
     trainLoader = data.DataLoader(dataLoader_train, batch_size=batch_size, shuffle=True)
 
-    # # network
+    # network
     unet3d = Unet(
         input_channels=1, 
         output_channels=1, 
@@ -72,25 +75,19 @@ if __name__ == '__main__':
         use_deconv=1,
         flag_rsa=0
     )
-    unet3d.to(device0)
+    unet3d.to(device)
     if flag_init == 0:
-        weights_dict = torch.load(rootDir+'/weight_qsmnet_p2/linear_factor=1_validation=6_test=7.pt')
+        weights_dict = torch.load(rootDir+'/weight_qsmnet_p/linear_factor=1_validation=6_test=7.pt')
     else:
-        weights_dict = torch.load(rootDir+'/weight_qsmnet_p2/linear_factor=4_validation=6_test=7.pt')
+        weights_dict = torch.load(rootDir+'/weight_qsmnet_p/linear_factor=4_validation=6_test=7.pt')
     unet3d.load_state_dict(weights_dict)
-    # model = unet3d
 
-    if opt['flag_resnet']:
-        resnet = ResBlock(
-            input_dim=1, 
-            filter_dim=32,
-            output_dim=1, 
-        )
-        resnet.to(device1)
-        weights_dict = torch.load(rootDir+'/weight_qsmnet_p2/linear_factor=1_validation=6_test=7_resnet.pt')
-        resnet.load_state_dict(weights_dict)
-        resnet.eval()
-        model = resnet
+    # unet3d = ResBlock(
+    #     input_dim=1, 
+    #     filter_dim=16,
+    #     output_dim=1
+    # )
+    # unet3d.to(device)
 
     # optimizer
     optimizer = optim.Adam(unet3d.parameters(), lr=lr, betas=(0.5, 0.999))
@@ -103,28 +100,22 @@ if __name__ == '__main__':
         # training phase
         for idx, (rdf_inputs, rdfs, masks, weights, wGs) in enumerate(trainLoader):
             
-            rdf_inputs = rdf_inputs.to(device0, dtype=torch.float)
-            rdfs = rdfs.to(device0, dtype=torch.float)
-            masks = masks.to(device0, dtype=torch.float)
-            weights = weights.to(device0, dtype=torch.float)
-            wGs = wGs.to(device0, dtype=torch.float)
+            rdf_inputs = rdf_inputs.to(device, dtype=torch.float)
+            rdfs = rdfs.to(device, dtype=torch.float)
+            masks = masks.to(device, dtype=torch.float)
+            weights = weights.to(device, dtype=torch.float)
+            wGs = wGs.to(device, dtype=torch.float)
 
             if epoch == 1:
                 unet3d.eval()
-                QSMnet = unet3d(rdf_inputs)
-                resnet_input = QSMnet
+
+                QSMnet = unet3d(rdf_inputs)[:, 0, ...]
                 QSMnet = np.squeeze(np.asarray(QSMnet.cpu().detach()))
+
                 print('Saving initial results')
                 adict = {}
                 adict['QSMnet'] = QSMnet
                 sio.savemat(rootDir+'/QSMnet{}.mat'.format(flag_init), adict)
-
-            if opt['flag_resnet']:
-                rdf_inputs = resnet_input.to(device1, dtype=torch.float)
-                rdfs = rdfs.to(device1, dtype=torch.float)
-                masks = masks.to(device1, dtype=torch.float)
-                weights = weights.to(device1, dtype=torch.float)
-                wGs = wGs.to(device1, dtype=torch.float)
 
             loss_fidelity = BayesianQSM_train(
                 model=unet3d,

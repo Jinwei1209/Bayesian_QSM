@@ -25,8 +25,8 @@ class ResBlock(nn.Module):
 
         self.basicBlock1 = self._basicBlock(self.input_dim, self.filter_dim)
         self.basicBlock2 = self._basicBlock(self.filter_dim, self.filter_dim)
-        self.basicBlock3 = self._basicBlock(self.filter_dim, self.filter_dim)
-        self.basicBlock4 = self._basicBlock(self.filter_dim, self.filter_dim)
+        # self.basicBlock3 = self._basicBlock(self.filter_dim, self.filter_dim)
+        # self.basicBlock4 = self._basicBlock(self.filter_dim, self.filter_dim)
         self.basicBlock5 = self._basicBlock(self.filter_dim, self.output_dim)
 
     def _basicBlock(self, input_dim, output_dim):
@@ -45,9 +45,9 @@ class ResBlock(nn.Module):
 
     def forward(self, x):
         x = self.basicBlock1(x)
-        x = self.basicBlock2(x) + x
-        x = self.basicBlock3(x) + x
-        x = self.basicBlock4(x) + x
+        x = self.basicBlock2(x)
+        # x = self.basicBlock3(x) + x
+        # x = self.basicBlock4(x) + x
         x = self.basicBlock5(x)
         return x
 
