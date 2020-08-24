@@ -105,7 +105,7 @@ if __name__ == '__main__':
     optimizer = optim.Adam(list(unet3d.parameters()) + list(resnet.parameters()), lr = lr, betas=(0.5, 0.999))
     ms = [0.3, 0.5, 0.7, 0.9]
     ms = [np.floor(m * niter).astype(int) for m in ms]
-    scheduler = MultiStepLR(optimizer, milestones = ms, gamma = 0.2)
+    scheduler = MultiStepLR(optimizer, milestones = ms, gamma = 0.5)
 
     # logger
     logger = Logger('logs', rootDir, opt['linear_factor'], opt['case_validation'], opt['case_test'])
