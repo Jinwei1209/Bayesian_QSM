@@ -93,7 +93,7 @@ if __name__ == '__main__':
     )
 
     resnet = ResBlock(
-        input_dim=1, 
+        input_dim=2, 
         filter_dim=32,
         output_dim=1, 
     )
@@ -165,7 +165,7 @@ if __name__ == '__main__':
             masks = masks.to(device, dtype=torch.float)
 
             outputs1 = unet3d(rdfs)
-            outputs2 = resnet(outputs1)
+            outputs2 = resnet(torch.cat((rdfs, outputs1), 1))
             loss1 = loss_QSMnet(outputs1, qsms, masks, D)
             loss2 = loss_QSMnet(outputs2, qsms, masks, D)
             loss = loss1 + loss2
@@ -192,7 +192,7 @@ if __name__ == '__main__':
                 masks = masks.to(device, dtype=torch.float)
 
                 outputs1 = unet3d(rdfs)
-                outputs2 = resnet(outputs1)
+                outputs2 = resnet(torch.cat((rdfs, outputs1), 1))
                 loss1 = loss_QSMnet(outputs1, qsms, masks, D)
                 loss2 = loss_QSMnet(outputs2, qsms, masks, D)
                 loss = loss1 + loss2
