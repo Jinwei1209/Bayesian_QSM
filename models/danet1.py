@@ -26,17 +26,17 @@ class PAM_Module_3d(nn.Module):
                 attention: B X (HxWXD) X (HxWXD)
         """
         m_batchsize, C, height, width, depth = x.size()
-        proj_query = self.query_conv(x).view(m_batchsize, -1, width*height*depth).permute(0, 2, 1)
-        proj_key = self.key_conv(x).view(m_batchsize, -1, width*height*depth)
+        proj_query = self.query_conv(x).view(m_batchsize, -1, width*height*depth).permute(0, 2, 1).contiguous()
+        proj_key = self.key_conv(x).view(m_batchsize, -1, width*height*depth).contiguous()
         energy = torch.bmm(proj_query, proj_key)
         del proj_query, proj_key
         attention = self.softmax(energy)
         del energy
-        proj_value = self.value_conv(x).view(m_batchsize, -1, width*height*depth)
+        proj_value = self.value_conv(x).view(m_batchsize, -1, width*height*depth).contiguous()
 
         out = torch.bmm(proj_value, attention.permute(0, 2, 1))
         del proj_value, attention
-        out = out.view(m_batchsize, C, height, width, depth)
+        out = out.view(m_batchsize, C, height, width, depth).contiguous()
         out = self.gamma*out + x
 
         return out
@@ -59,19 +59,19 @@ class CAM_Module_3d(nn.Module):
                 attention: B X C X C
         """
         m_batchsize, C, height, width, depth = x.size()
-        proj_query = x.view(m_batchsize, C, -1)
-        proj_key = x.view(m_batchsize, C, -1).permute(0, 2, 1)
+        proj_query = x.view(m_batchsize, C, -1).contiguous()
+        proj_key = x.view(m_batchsize, C, -1).permute(0, 2, 1).contiguous()
         energy = torch.bmm(proj_query, proj_key)
         del proj_query, proj_key
         energy_new = torch.max(energy, -1, keepdim=True)[0].expand_as(energy)-energy
         attention = self.softmax(energy_new)
         del energy, energy_new
 
-        proj_value = x.view(m_batchsize, C, -1)
+        proj_value = x.view(m_batchsize, C, -1).contiguous()
 
         out = torch.bmm(attention, proj_value)
         del proj_value, attention
-        out = out.view(m_batchsize, C, height, width, depth)
+        out = out.view(m_batchsize, C, height, width, depth).contiguous()
         out = self.gamma*out + x
 
         return out

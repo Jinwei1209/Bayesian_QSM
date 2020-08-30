@@ -22,7 +22,7 @@ if __name__ == '__main__':
     # default parameters
     niter = 100
     lr = 1e-3
-    batch_size = 32
+    batch_size = 8  # 32
     flag_smv = 1
     flag_gen = 1
     trans = 0  # 0.15
@@ -62,10 +62,10 @@ if __name__ == '__main__':
 
     if flag_smv:
         B0_dir = (0, 0, 1)
-        patchSize = (64, 64, 32)  # (64, 64, 21)
+        patchSize = (128, 128, 32)  # (64, 64, 21)
         # patchSize_padding = (64, 64, 128)
         patchSize_padding = patchSize
-        extraction_step = (21, 21, 6)  # (21, 21, 7)
+        extraction_step = (42, 42, 11)  # (21, 21, 6)
         voxel_size = (1, 1, 3)
         D = dipole_kernel(patchSize_padding, voxel_size, B0_dir)
         # S = SMV_kernel(patchSize, voxel_size, radius=5)
@@ -80,20 +80,22 @@ if __name__ == '__main__':
         D = dipole_kernel(patchSize_padding, voxel_size, B0_dir)
 
     # network
-    unet3d = Unet(
-        input_channels=1, 
-        output_channels=1, 
-        num_filters=[2**i for i in range(5, 10)],  # or range(3, 8)
-        use_deconv=1,
-        flag_rsa=opt['flag_rsa']
-    )
-    # unet3d = UnetAg(
-    #     input_channels=1, 
-    #     output_channels=1, 
-    #     num_filters=[2**i for i in range(5, 10)],  # or range(3, 8)
-    #     use_deconv=1,
-    #     flag_rsa=opt['flag_rsa']
-    # )
+    if opt['flag_rsa'] < 5:
+        unet3d = Unet(
+            input_channels=1, 
+            output_channels=1, 
+            num_filters=[2**i for i in range(5, 10)],  # or range(3, 8)
+            use_deconv=1,
+            flag_rsa=opt['flag_rsa']
+        )
+    else:
+        unet3d = UnetAg(
+            input_channels=1, 
+            output_channels=1, 
+            num_filters=[2**i for i in range(5, 10)],  # or range(3, 8)
+            use_deconv=1,
+            flag_rsa=opt['flag_rsa']
+        )
 
     print(unet3d)
     unet3d.to(device)
@@ -107,18 +109,18 @@ if __name__ == '__main__':
     # logger
     logger = Logger('logs', rootDir, opt['flag_rsa'], opt['case_validation'], opt['case_test'])
 
-    # # dataloader
-    # dataLoader_train = COSMOS_data_loader(
-    #     split='Train',
-    #     patchSize=patchSize,
-    #     extraction_step=extraction_step,
-    #     voxel_size=voxel_size,
-    #     case_validation=opt['case_validation'],
-    #     case_test=opt['case_test'],
-    #     flag_smv=flag_smv,
-    #     flag_gen=flag_gen,
-    #     linear_factor=opt['linear_factor'])
-    # trainLoader = data.DataLoader(dataLoader_train, batch_size=batch_size, shuffle=True, pin_memory=True)
+    # dataloader
+    dataLoader_train = COSMOS_data_loader(
+        split='Train',
+        patchSize=patchSize,
+        extraction_step=extraction_step,
+        voxel_size=voxel_size,
+        case_validation=opt['case_validation'],
+        case_test=opt['case_test'],
+        flag_smv=flag_smv,
+        flag_gen=flag_gen,
+        linear_factor=opt['linear_factor'])
+    trainLoader = data.DataLoader(dataLoader_train, batch_size=batch_size, shuffle=True, pin_memory=True)
 
     dataLoader_val = COSMOS_data_loader(
         split='Val',
@@ -132,8 +134,8 @@ if __name__ == '__main__':
         linear_factor=opt['linear_factor'])
     valLoader = data.DataLoader(dataLoader_val, batch_size=batch_size, shuffle=True, pin_memory=True)
 
-    dataLoader_train = dataLoader_val
-    trainLoader = valLoader
+    # dataLoader_train = dataLoader_val
+    # trainLoader = valLoader
 
     epoch = 0
     gen_iterations = 1

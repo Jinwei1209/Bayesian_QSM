@@ -23,8 +23,7 @@ if __name__ == '__main__':
 
     # typein parameters
     parser = argparse.ArgumentParser(description='Deep Learning QSM')
-    parser.add_argument('--gpu_id', type=str, default='0')
-    parser.add_argument('--flag_init', type=int, default=0)  # 0 for linear_factor=1, 1 for linear_factor=4
+    parser.add_argument('--gpu_id', type=str, default='0, 1')
     parser.add_argument('--patient_type', type=str, default='ICH')  # or MS_old, MS_new
     parser.add_argument('--patientID', type=int, default=8)
     opt = {**vars(parser.parse_args())}
@@ -33,16 +32,11 @@ if __name__ == '__main__':
 
     patient_type = opt['patient_type']
     patientID = opt['patientID']
-    flag_init = opt['flag_init']
-
-    if patient_type == 'ICH':
-        folder_weights_VI = '/weights_VI'
-    elif patient_type == 'MS_old' or 'MS_new':
-        folder_weights_VI = '/weights_VI2'
 
     os.environ['CUDA_VISIBLE_DEVICES'] = opt['gpu_id'] 
     t0 = time.time()
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device0 = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    device1 = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
     rootDir = '/data/Jinwei/Bayesian_QSM'
 
     # dataloader
@@ -67,30 +61,29 @@ if __name__ == '__main__':
 
     trainLoader = data.DataLoader(dataLoader_train, batch_size=batch_size, shuffle=True)
 
-    # # network
-    # unet3d = Unet(
-    #     input_channels=1, 
-    #     output_channels=1, 
-    #     num_filters=[2**i for i in range(5, 10)],  # or range(3, 8)
-    #     use_deconv=1,
-    #     flag_rsa=0
-    # )
-    # unet3d.to(device)
-    # if flag_init == 0:
-    #     weights_dict = torch.load(rootDir+'/weight_qsmnet_p/linear_factor=1_validation=6_test=7.pt')
-    # else:
-    #     weights_dict = torch.load(rootDir+'/weight_qsmnet_p/linear_factor=4_validation=6_test=7.pt')
-    # unet3d.load_state_dict(weights_dict)
+    # network
+    unet3d = Unet(
+        input_channels=1, 
+        output_channels=1, 
+        num_filters=[2**i for i in range(5, 10)],  # or range(3, 8)
+        use_deconv=1,
+        flag_rsa=0
+    )
+    unet3d.to(device0)
+    weights_dict = torch.load(rootDir+'/weight_2nets/linear_factor=1_validation=6_test=7_unet3d.pt')
+    unet3d.load_state_dict(weights_dict)
 
-    unet3d = ResBlock(
-        input_dim=1, 
-        filter_dim=16,
+    resnet = ResBlock(
+        input_dim=2, 
+        filter_dim=32,
         output_dim=1
     )
-    unet3d.to(device)
+    resnet.to(device1)
+    weights_dict = torch.load(rootDir+'/weight_2nets/linear_factor=1_validation=6_test=7_resnet.pt')
+    resnet.load_state_dict(weights_dict)
 
     # optimizer
-    optimizer = optim.Adam(unet3d.parameters(), lr=lr, betas=(0.5, 0.999))
+    optimizer = optim.Adam(resnet.parameters(), lr=lr, betas=(0.5, 0.999))
 
     epoch = 0
     loss_iters = np.zeros(niter)
@@ -99,50 +92,53 @@ if __name__ == '__main__':
 
         # training phase
         for idx, (rdf_inputs, rdfs, masks, weights, wGs) in enumerate(trainLoader):
-            
-            rdf_inputs = rdf_inputs.to(device, dtype=torch.float)
-            rdfs = rdfs.to(device, dtype=torch.float)
-            masks = masks.to(device, dtype=torch.float)
-            weights = weights.to(device, dtype=torch.float)
-            wGs = wGs.to(device, dtype=torch.float)
 
             if epoch == 1:
                 unet3d.eval()
-
-                QSMnet = unet3d(rdf_inputs)[:, 0, ...]
-                QSMnet = np.squeeze(np.asarray(QSMnet.cpu().detach()))
+                rdf_inputs = rdf_inputs.to(device0, dtype=torch.float)
+                qsm_inputs = unet3d(rdf_inputs).cpu().detach()
+                QSMnet = np.squeeze(np.asarray(qsm_inputs))
 
                 print('Saving initial results')
                 adict = {}
                 adict['QSMnet'] = QSMnet
-                sio.savemat(rootDir+'/QSMnet{}.mat'.format(flag_init), adict)
+                sio.savemat(rootDir+'/QSMnet.mat', adict)
 
-            loss_fidelity = BayesianQSM_train(
-                model=unet3d,
-                input_RDFs=rdf_inputs,
-                in_loss_RDFs=rdfs,
-                QSMs=0,
-                Masks=masks,
-                fidelity_Ws=weights,
-                gradient_Ws=wGs,
-                D=D,
-                flag_COSMOS=0,
-                optimizer=optimizer,
-                sigma_sq=0,
-                Lambda_tv=0,
-                voxel_size=voxel_size,
-                K=1,
-                flag_l1=2
-            )
+            else:
+                rdf_inputs = rdf_inputs.to(device1, dtype=torch.float)
+                qsm_inputs1 = qsm_inputs.to(device1, dtype=torch.float)
+                inputs_cat = torch.cat((rdf_inputs, qsm_inputs1), dim=1)
+                rdfs = rdfs.to(device1, dtype=torch.float)
+                masks = masks.to(device1, dtype=torch.float)
+                weights = weights.to(device1, dtype=torch.float)
+                wGs = wGs.to(device1, dtype=torch.float)
 
-            print('epochs: [%d/%d], time: %ds, Fidelity loss: %f' % (epoch, niter, time.time()-t0, loss_fidelity))
+                loss_fidelity = BayesianQSM_train(
+                    model=resnet,
+                    input_RDFs=inputs_cat,
+                    in_loss_RDFs=rdfs,
+                    QSMs=0,
+                    Masks=masks,
+                    fidelity_Ws=weights,
+                    gradient_Ws=wGs,
+                    D=D,
+                    flag_COSMOS=0,
+                    optimizer=optimizer,
+                    sigma_sq=0,
+                    Lambda_tv=0,
+                    voxel_size=voxel_size,
+                    K=1,
+                    flag_l1=2
+                )
 
-    FINE = unet3d(rdf_inputs)[:, 0, ...]
+                print('epochs: [%d/%d], time: %ds, Fidelity loss: %f' % (epoch, niter, time.time()-t0, loss_fidelity))
+
+    FINE = resnet(inputs_cat)[:, 0, ...]
     FINE = np.squeeze(np.asarray(FINE.cpu().detach()))
 
     adict = {}
     adict['FINE'] = FINE
-    sio.savemat(rootDir+'/FINE{}.mat'.format(flag_init), adict)
+    sio.savemat(rootDir+'/FINE.mat', adict)
 
 
 # import os

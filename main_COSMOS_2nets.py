@@ -35,7 +35,6 @@ if __name__ == '__main__':
     # typein parameters
     parser = argparse.ArgumentParser(description='Deep Learning QSM')
     parser.add_argument('--gpu_id', type=str, default='0')
-    parser.add_argument('--flag_rsa', type=int, default=0)
     parser.add_argument('--case_validation', type=int, default=6)
     parser.add_argument('--case_test', type=int, default=7)
     parser.add_argument('--linear_factor', type=int, default=1)
@@ -89,7 +88,7 @@ if __name__ == '__main__':
         output_channels=1, 
         num_filters=[2**i for i in range(5, 10)],  # or range(3, 8)
         use_deconv=1,
-        flag_rsa=opt['flag_rsa']
+        flag_rsa=0
     )
 
     resnet = ResBlock(
@@ -110,18 +109,18 @@ if __name__ == '__main__':
     # logger
     logger = Logger('logs', rootDir, opt['linear_factor'], opt['case_validation'], opt['case_test'])
 
-    # dataloader
-    dataLoader_train = COSMOS_data_loader(
-        split='Train',
-        patchSize=patchSize,
-        extraction_step=extraction_step,
-        voxel_size=voxel_size,
-        case_validation=opt['case_validation'],
-        case_test=opt['case_test'],
-        flag_smv=flag_smv,
-        flag_gen=flag_gen,
-        linear_factor=opt['linear_factor'])
-    trainLoader = data.DataLoader(dataLoader_train, batch_size=batch_size, shuffle=True, pin_memory=True)
+    # # dataloader
+    # dataLoader_train = COSMOS_data_loader(
+    #     split='Train',
+    #     patchSize=patchSize,
+    #     extraction_step=extraction_step,
+    #     voxel_size=voxel_size,
+    #     case_validation=opt['case_validation'],
+    #     case_test=opt['case_test'],
+    #     flag_smv=flag_smv,
+    #     flag_gen=flag_gen,
+    #     linear_factor=opt['linear_factor'])
+    # trainLoader = data.DataLoader(dataLoader_train, batch_size=batch_size, shuffle=True, pin_memory=True)
 
     dataLoader_val = COSMOS_data_loader(
         split='Val',
@@ -135,8 +134,8 @@ if __name__ == '__main__':
         linear_factor=opt['linear_factor'])
     valLoader = data.DataLoader(dataLoader_val, batch_size=batch_size, shuffle=True, pin_memory=True)
 
-    # dataLoader_train = dataLoader_val
-    # trainLoader = valLoader
+    dataLoader_train = dataLoader_val
+    trainLoader = valLoader
 
     epoch = 0
     gen_iterations = 1
@@ -205,5 +204,5 @@ if __name__ == '__main__':
         % (epoch, niter, Validation_loss[-1]))
 
         if Validation_loss[-1] == min(Validation_loss):
-            torch.save(resnet.state_dict(), rootDir+'/linear_factor={0}_validation={1}_test={2}_unet3d'.format(opt['linear_factor'], opt['case_validation'], opt['case_test'])+'.pt')
+            torch.save(unet3d.state_dict(), rootDir+'/linear_factor={0}_validation={1}_test={2}_unet3d'.format(opt['linear_factor'], opt['case_validation'], opt['case_test'])+'.pt')
             torch.save(resnet.state_dict(), rootDir+'/linear_factor={0}_validation={1}_test={2}_resnet'.format(opt['linear_factor'], opt['case_validation'], opt['case_test'])+'.pt')
