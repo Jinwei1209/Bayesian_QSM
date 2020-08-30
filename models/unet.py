@@ -3,7 +3,8 @@ import torch.nn as nn
 
 from models.unet_blocks import *
 from models.rsaold1 import rsaBlock as rsa1
-from models.rsa1 import rsaBlock as rsa2
+# from models.rsa1 import rsaBlock as rsa2
+from models.fa import faBlockNew as rsa2
 from models.multiHead import multiHeadAttention as rsa3
 from models.danet1 import dapBlock
 

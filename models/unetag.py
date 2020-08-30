@@ -81,9 +81,6 @@ class UnetAg(nn.Module):
 
 
     def forward(self, x):
-
-        blocks = []
-
         conv1 = self.conv_path[0](x)
         x = self.down_path[0](conv1)
         conv2 = self.conv_path[1](x)

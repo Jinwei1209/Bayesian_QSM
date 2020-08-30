@@ -67,27 +67,27 @@ if __name__ == '__main__':
 
     trainLoader = data.DataLoader(dataLoader_train, batch_size=batch_size, shuffle=True)
 
-    # network
-    unet3d = Unet(
-        input_channels=1, 
-        output_channels=1, 
-        num_filters=[2**i for i in range(5, 10)],  # or range(3, 8)
-        use_deconv=1,
-        flag_rsa=0
-    )
-    unet3d.to(device)
-    if flag_init == 0:
-        weights_dict = torch.load(rootDir+'/weight_qsmnet_p/linear_factor=1_validation=6_test=7.pt')
-    else:
-        weights_dict = torch.load(rootDir+'/weight_qsmnet_p/linear_factor=4_validation=6_test=7.pt')
-    unet3d.load_state_dict(weights_dict)
-
-    # unet3d = ResBlock(
-    #     input_dim=1, 
-    #     filter_dim=16,
-    #     output_dim=1
+    # # network
+    # unet3d = Unet(
+    #     input_channels=1, 
+    #     output_channels=1, 
+    #     num_filters=[2**i for i in range(5, 10)],  # or range(3, 8)
+    #     use_deconv=1,
+    #     flag_rsa=0
     # )
     # unet3d.to(device)
+    # if flag_init == 0:
+    #     weights_dict = torch.load(rootDir+'/weight_qsmnet_p/linear_factor=1_validation=6_test=7.pt')
+    # else:
+    #     weights_dict = torch.load(rootDir+'/weight_qsmnet_p/linear_factor=4_validation=6_test=7.pt')
+    # unet3d.load_state_dict(weights_dict)
+
+    unet3d = ResBlock(
+        input_dim=1, 
+        filter_dim=16,
+        output_dim=1
+    )
+    unet3d.to(device)
 
     # optimizer
     optimizer = optim.Adam(unet3d.parameters(), lr=lr, betas=(0.5, 0.999))

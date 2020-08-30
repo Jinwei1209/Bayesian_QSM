@@ -145,7 +145,7 @@ class Logger():
 
         self.t0 = datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y")
         print(self.t0)
-        self.fileName = 'linear_factor={0}_validation={1}_test={2}_2nets'.format(rsa, validation, test) + '.log'
+        self.fileName = 'rsa={0}_validation={1}_test={2}'.format(rsa, validation, test) + '.log'
         self.filePath = os.path.join(self.logPath, self.fileName)
 
         if self.flagSave:
