@@ -77,7 +77,7 @@ class COSMOS_data_loader(data.Dataset):
         for i_case in self.casesRange:
             print('Processing case: {}'.format(i_case))
             if self.flag_smv:  
-                filename = '{0}/{1}/RDF_3mm.mat'.format(self.dataFolder, i_case)
+                filename = '{0}/{1}/RDF_smv_3mm.mat'.format(self.dataFolder, i_case)
                 RDF = np.real(load_mat(filename, varname='RDF_new'))
                 filename = '{0}/{1}/Mask_smv_3mm.mat'.format(self.dataFolder, i_case)
                 Mask = np.real(load_mat(filename, varname='Mask_new'))
@@ -170,7 +170,7 @@ class COSMOS_data_loader(data.Dataset):
 
         for i_case in self.casesRange:
             if self.flag_smv:
-                filename = '{0}/{1}/RDF_3mm.mat'.format(self.dataFolder, i_case)
+                filename = '{0}/{1}/RDF_smv_3mm.mat'.format(self.dataFolder, i_case)
                 RDF = np.real(load_mat(filename, varname='RDF_new'))
                 RDF_dir = RDF[..., test_dir]
                 filename = '{0}/{1}/Mask_smv_3mm.mat'.format(self.dataFolder, i_case)
