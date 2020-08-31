@@ -163,7 +163,7 @@ if __name__ == '__main__':
             qsms = (qsms.to(device, dtype=torch.float) + trans) * scale
             masks = masks.to(device, dtype=torch.float)
 
-            outputs1 = unet3d(rdfs) * masks
+            outputs1 = unet3d(rdfs)
             outputs2 = resnet(torch.cat((rdfs, outputs1), 1))
             loss1 = loss_QSMnet(outputs1, qsms, masks, D)
             loss2 = loss_QSMnet(outputs2, qsms, masks, D)
@@ -190,7 +190,7 @@ if __name__ == '__main__':
                 qsms = (qsms.to(device, dtype=torch.float) + trans) * scale
                 masks = masks.to(device, dtype=torch.float)
 
-                outputs1 = unet3d(rdfs) * masks
+                outputs1 = unet3d(rdfs)
                 outputs2 = resnet(torch.cat((rdfs, outputs1), 1))
                 loss1 = loss_QSMnet(outputs1, qsms, masks, D)
                 loss2 = loss_QSMnet(outputs2, qsms, masks, D)
