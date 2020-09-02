@@ -13,10 +13,12 @@ class Patient_data_loader_all(data.Dataset):
     def __init__(
         self,
         dataFolder = '/data/Jinwei/Bayesian_QSM/Data_with_N_std/20190920_MEDI_3mm',
-        patientType='ICH'
+        patientType='ICH',
+        flag_RDF_input=0
     ):
         self.patientType = patientType
         self.dataFolder = dataFolder
+        self.flag_RDF_input = flag_RDF_input
         if patientType == 'ICH':
             print('Loading ICH data')
             self.list_IDs = [1, 4, 6, 9]
@@ -41,12 +43,13 @@ class Patient_data_loader_all(data.Dataset):
         B0_dir,
         factor
     ):
-        self.RDFs, self.Masks, self.Data_weights, self.wGs, self.Ds = [], [], [], [], []
+        self.RDF_inputs, self.RDFs, self.Masks, self.Data_weights, self.wGs, self.Ds = [], [], [], [], [], []
         for i in range(self.num_subs):
             print('Loading ID: {0}'.format(self.list_IDs[i]))
             self.patientID = self.patientType + str(self.list_IDs[i])
             self.load_volume(voxel_size, radius, B0_dir, factor)
             self.RDFs.append(self.RDF[0])
+            self.RDF_inputs.append(self.RDF_input[0])
             self.Masks.append(self.Mask[0])
             self.Data_weights.append(self.Data_weight[0])
             self.wGs.append(self.wG[0])
@@ -90,10 +93,12 @@ class Patient_data_loader_all(data.Dataset):
 
         filename = '{0}/RDF.mat'.format(dataDir)
         RDF = np.real(load_mat(filename, varname='RDF'))
+        RDF_input = np.real(RDF*Mask)/factor
         RDF = RDF - SMV(RDF, volume_size, voxel_size, radius)
         RDF = np.real(RDF*Mask)/factor
 
         self.RDF = RDF[np.newaxis, np.newaxis, ...]
+        self.RDF_input = RDF_input[np.newaxis, np.newaxis, ...]
         self.Mask = Mask[np.newaxis, np.newaxis, ...]
         self.Data_weight = Data_weight[np.newaxis, np.newaxis, ...]
         self.wG = wG[np.newaxis, np.newaxis, ...]
@@ -102,4 +107,7 @@ class Patient_data_loader_all(data.Dataset):
         return self.num_subs
 
     def __getitem__(self, idx):
-        return self.RDFs[idx], self.Masks[idx], self.Data_weights[idx], self.wGs[idx], self.Ds[idx]
+        if self.flag_RDF_input:
+            return self.RDF_inputs[idx], self.RDFs[idx], self.Masks[idx], self.Data_weights[idx], self.wGs[idx], self.Ds[idx]
+        else:
+            return self.RDFs[idx], self.Masks[idx], self.Data_weights[idx], self.wGs[idx], self.Ds[idx]

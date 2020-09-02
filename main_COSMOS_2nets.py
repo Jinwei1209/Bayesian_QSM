@@ -19,7 +19,7 @@ from utils.loss import *
 from utils.files import *
 
 '''
-    train the resnet based on a pre-trained unet
+    train resnet and unet3d using COSMOS dataset simultaneously
 '''
 if __name__ == '__main__':
 
