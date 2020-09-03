@@ -47,9 +47,8 @@ if __name__ == '__main__':
     )
 
     # parameters
-    niter = 300
-    # lr = 1e-3
-    lr = 5e-4
+    niter = 20
+    lr = 1e-3
     batch_size = 1
     B0_dir = (0, 0, 1)
 
@@ -70,7 +69,8 @@ if __name__ == '__main__':
         flag_rsa=0
     )
     unet3d.to(device0)
-    weights_dict = torch.load(rootDir+'/weight_2nets/linear_factor=1_validation=6_test=7_unet3d.pt')
+    weights_dict = torch.load(rootDir+'/weight_2nets/unet3d_fine.pt')
+    # weights_dict = torch.load(rootDir+'/weight_2nets2/linear_factor=1_validation=6_test=7_unet3d.pt')
     unet3d.load_state_dict(weights_dict)
 
     resnet = ResBlock(
@@ -79,7 +79,8 @@ if __name__ == '__main__':
         output_dim=1
     )
     resnet.to(device1)
-    weights_dict = torch.load(rootDir+'/weight_2nets/linear_factor=1_validation=6_test=7_resnet.pt')
+    weights_dict = torch.load(rootDir+'/weight_2nets/resnet_fine.pt')
+    # weights_dict = torch.load(rootDir+'/weight_2nets2/linear_factor=1_validation=6_test=7_resnet.pt')
     resnet.load_state_dict(weights_dict)
 
     # optimizer
@@ -94,15 +95,10 @@ if __name__ == '__main__':
         for idx, (rdf_inputs, rdfs, masks, weights, wGs) in enumerate(trainLoader):
 
             if epoch == 1:
-                unet3d.eval()
+                unet3d.eval(), resnet.eval()
                 rdf_inputs = rdf_inputs.to(device0, dtype=torch.float)
                 qsm_inputs = unet3d(rdf_inputs).cpu().detach()
                 QSMnet = np.squeeze(np.asarray(qsm_inputs))
-
-                print('Saving initial results')
-                adict = {}
-                adict['QSMnet'] = QSMnet
-                sio.savemat(rootDir+'/QSMnet.mat', adict)
 
             else:
                 rdf_inputs = rdf_inputs.to(device1, dtype=torch.float)
@@ -112,6 +108,14 @@ if __name__ == '__main__':
                 masks = masks.to(device1, dtype=torch.float)
                 weights = weights.to(device1, dtype=torch.float)
                 wGs = wGs.to(device1, dtype=torch.float)
+
+                if epoch == 2:
+                    qsm_outputs = resnet(inputs_cat).cpu().detach()
+                    QSMnet = np.squeeze(np.asarray(qsm_outputs))
+                    print('Saving initial results')
+                    adict = {}
+                    adict['QSMnet'] = QSMnet
+                    sio.savemat(rootDir+'/QSMnet.mat', adict)
 
                 loss_fidelity = BayesianQSM_train(
                     model=resnet,
