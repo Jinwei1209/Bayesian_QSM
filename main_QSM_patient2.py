@@ -47,7 +47,7 @@ if __name__ == '__main__':
     )
 
     # parameters
-    niter = 20
+    niter = 50
     lr = 1e-3
     batch_size = 1
     B0_dir = (0, 0, 1)
