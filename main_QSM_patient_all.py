@@ -30,7 +30,7 @@ if __name__ == '__main__':
     trans = 0.15
     scale = 3
     K = 5  # 5 default
-    r = 3e-3
+    r = 3e-3 # 3e-3 for PDI-VI0, 0.001312 for PDI-VI
 
     # typein parameters
     parser = argparse.ArgumentParser(description='Deep Learning QSM')
@@ -160,7 +160,8 @@ if __name__ == '__main__':
             if val_loss[-1] == min(val_loss):
                 if Lambda_tv:
                     # torch.save(unet3d.state_dict(), rootDir+folder_weights_VI+'/weights_lambda_tv={0}_epoch={1}.pt'.format(Lambda_tv, niter))
-                    torch.save(unet3d.state_dict(), rootDir+folder_weights_VI+'/weights_tv_no_initial_r.pt')
+                    torch.save(unet3d.state_dict(), rootDir+folder_weights_VI+'/weights_tv_no_initial.pt')  # no_initial_r: PDI-VI0 with r fixed = 3e-3, 
+                                                                                                            # no_initial: PDI-VI0 with r learned
                 else:
                     torch.save(unet3d.state_dict(), rootDir+folder_weights_VI+'/weights_no_prior.pt')
 
@@ -180,7 +181,7 @@ if __name__ == '__main__':
             # weights_dict = torch.load(rootDir+folder_weights_VI+'/weights_lambda_tv={0}_epoch={1}.pt'.format(Lambda_tv, niter))
             # weights_dict = torch.load(rootDir+folder_weights_VI+'/weights_lambda_tv={0}.pt'.format(Lambda_tv))
             weights_dict = torch.load(rootDir+folder_weights_VI+'/weights_tv_no_initial_r.pt')
-            # weights_dict['r'] = (torch.ones(1)*r).to(device)
+            weights_dict['r'] = (torch.ones(1)*r).to(device)
             unet3d.load_state_dict(weights_dict)
         else:
             unet3d.load_state_dict(torch.load(rootDir+folder_weights_VI+'/weights_no_prior.pt'))

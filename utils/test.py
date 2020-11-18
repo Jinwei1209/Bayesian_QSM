@@ -7,7 +7,7 @@ def compute_rmse(chi_recon, chi_true):
     """chi_true is the refernce ground truth"""
     mask = abs(chi_true) > 0
     chi_recon = chi_recon * mask
-    return 100 * np.sqrt(np.sum((chi_recon - chi_true)**2)) / np.sqrt(np.sum(chi_true**2))
+    return 100 * np.sqrt(np.sum((chi_recon - chi_true)**2)/np.prod(chi_recon.shape))
 
 def compute_fidelity_error(chi, rdf, voxel_size):
     """data consistenty loss, with rdf the measured data"""

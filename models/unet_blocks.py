@@ -17,13 +17,17 @@ def ConvBlock(
     layers = []
 
     layers.append(nn.Conv3d(input_dim, output_dim, kernel_size, stride, padding))
-    if use_bn:
+    if use_bn == 1:
         layers.append(nn.BatchNorm3d(output_dim))
+    elif use_bn == 2:
+        layers.append(nn.GroupNorm(output_dim, output_dim))
     layers.append(nn.ReLU(inplace=True))
 
     layers.append(nn.Conv3d(output_dim, output_dim, kernel_size, stride, padding))
-    if use_bn:
+    if use_bn == 1:
         layers.append(nn.BatchNorm3d(output_dim))
+    elif use_bn == 2:
+        layers.append(nn.GroupNorm(output_dim, output_dim))
     layers.append(nn.ReLU(inplace=True))
 
     return layers
@@ -85,7 +89,7 @@ class UpConvBlock(nn.Module):
             self.upconv_layer = nn.Conv3d(input_dim, output_dim, kernel_size, stride, padding)
         self.upconv_layer.apply(init_weights)
 
-        self.conv_block = DownConvBlock(input_dim, output_dim, pool=False)
+        self.conv_block = DownConvBlock(input_dim, output_dim, use_bn=use_bn, pool=False)
 
     def forward(self, right, left):
         

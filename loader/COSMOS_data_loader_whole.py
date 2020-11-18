@@ -62,6 +62,7 @@ class COSMOS_data_loader_whole(data.Dataset):
 
     def load_all_volumes(self):
         self.RDFs, self.Masks, self.Data_weights, self.wGs, self.Ds = [], [], [], [], []
+        self.QSMs = []
 
         for i_case in self.casesRange:
             print('Processing case: {}'.format(i_case))
@@ -118,6 +119,7 @@ class COSMOS_data_loader_whole(data.Dataset):
                     RDF_dir = np.real(np.fft.ifftn(np.fft.fftn(QSM_dir) * D)).astype(np.float32)
 
                 self.RDFs.append(RDF_dir[np.newaxis, ...])
+                self.QSMs.append(QSM_dir[np.newaxis, ...])
                 self.Masks.append(Mask_dir[np.newaxis, ...])
                 self.Data_weights.append(Data_weight_dir[np.newaxis, ...])
                 self.wGs.append(wG_dir[np.newaxis, ...])
@@ -131,7 +133,7 @@ class COSMOS_data_loader_whole(data.Dataset):
         return self.num_samples
 
     def __getitem__(self, idx):
-        return self.RDFs[idx], self.Masks[idx], self.Data_weights[idx], self.wGs[idx], self.Ds[idx//5]
+        return self.RDFs[idx], self.QSMs[idx], self.Masks[idx], self.Data_weights[idx], self.wGs[idx], self.Ds[idx//5]
 
         
 

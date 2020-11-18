@@ -11,7 +11,9 @@ from torch.utils import data
 from loader.COSMOS_data_loader import COSMOS_data_loader
 from loader.Patient_data_loader import Patient_data_loader
 from models.unet import Unet
-from models.unetag import UnetAg
+from models.unetVggBNNAR1CLF import unetVggBNNAR1CLF
+from models.unetVggBNNAR1CLFRes import unetVggBNNAR1CLFRes
+from models.unetVggBNNAR1CLFEnc import unetVggBNNAR1CLFEnc
 from models.utils import count_parameters
 from utils.train import *
 from utils.medi import *
@@ -24,8 +26,8 @@ if __name__ == '__main__':
     # default parameters
     flag_smv = 1
     flag_gen = 1
-    trans = 0.15
-    scale = 3
+    trans = 0
+    scale = 1
     if flag_smv:
         voxel_size = (1, 1, 3)
     else:
@@ -37,7 +39,7 @@ if __name__ == '__main__':
     # typein parameters
     parser = argparse.ArgumentParser(description='Deep Learning QSM')
     parser.add_argument('--gpu_id', type=str, default='0')
-    parser.add_argument('--flag_rsa', type=int, default=-1)
+    parser.add_argument('--flag_cfl', type=int, default=0)
     parser.add_argument('--case_validation', type=int, default=6)
     parser.add_argument('--case_test', type=int, default=7)
     parser.add_argument('--weight_dir', type=str, default='weight_cv')  # or 'weights_VI'
@@ -63,47 +65,46 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     rootDir = '/data/Jinwei/Bayesian_QSM/'
 
-    rsa = opt['flag_rsa']
+    cfl = opt['flag_cfl']
     val = opt['case_validation']
     test = opt['case_test']
 
-    if rsa < 0:
+    # network
+    if opt['flag_cfl'] == 0:
         unet3d = Unet(
             input_channels=1, 
-            output_channels=2, 
-            num_filters=[2**i for i in range(3, 8)],  # (5, 10) for weights_rsa={0}_validation={1}_test={2}.pt
-                                                       # (3, 8) for weights_vi_cosmos.pt
-            bilateral=1,
-            use_deconv=1,
-            use_deconv2=1,
-            renorm=1,
-            flag_r_train=0,
-            bilateral_infer=0  # 1 for (5, 10), 0 for (3, 8)
+            output_channels=1, 
+            num_filters=[2**i for i in range(5, 10)],  # or range(3, 8)
+            use_deconv=1
         )
-    elif rsa < 5:
-        unet3d = Unet(
-            input_channels=1, 
-            output_channels=2, 
-            num_filters=[2**i for i in range(5, 10)],
-            use_deconv=1,
-            flag_rsa=rsa
+
+    elif opt['flag_cfl'] == 1:
+        unet3d = unetVggBNNAR1CLF(
+            input_channels=1,
+            output_channels=1,
+            num_filters=[2**i for i in range(5, 10)],  # or range(3, 8)
+            use_deconv=1
         )
-    else:
-        unet3d = UnetAg(
-        input_channels=1, 
-        output_channels=2, 
-        num_filters=[2**i for i in range(5, 10)],  # or range(3, 8)
-        use_deconv=1,
-        flag_rsa=opt['flag_rsa']
-    )
+    elif opt['flag_cfl'] == 2:
+        unet3d = unetVggBNNAR1CLFRes(
+            input_channels=1,
+            output_channels=1,
+            num_filters=[2**i for i in range(5, 10)],  # or range(3, 8)
+            use_deconv=1
+        )
+    elif opt['flag_cfl'] == 3:
+        unet3d = unetVggBNNAR1CLFEnc(
+            input_channels=1,
+            output_channels=1,
+            num_filters=[2**i for i in range(5, 10)],  # or range(3, 8)
+            use_deconv=1
+        )
 
     print('{0} trainable parameters in total'.format(count_parameters(unet3d)))
     unet3d.to(device)
-    # unet3d.load_state_dict(torch.load(rootDir+opt['weight_dir']+'/weights_rsa={0}_validation={1}_test={2}'.format(rsa, val, test)+'.pt'))
-    unet3d.load_state_dict(torch.load(rootDir+opt['weight_dir']+'/weights_vi0_cosmos.pt'))  # vi0 or vi
+    unet3d.load_state_dict(torch.load(rootDir+opt['weight_dir']+'/cfl={0}_validation={1}_test={2}'.format(cfl, val, test)+'.pt'))
+    # unet3d.load_state_dict(torch.load(rootDir+opt['weight_dir']+'/weights_vi_cosmos.pt'))
     unet3d.eval()
-
-    print(unet3d.r)
 
     QSMs, STDs, RDFs = [], [], []
     RMSEs, Fidelities = [], []
@@ -127,25 +128,17 @@ if __name__ == '__main__':
         
             rdfs = (rdfs.to(device, dtype=torch.float) + trans) * scale
             qsms = (qsms.to(device, dtype=torch.float) + trans) * scale
-            # rdfs = rdfs[:, :, 50:220, 50:220, :]
-            # qsms = qsms[:, :, 50:220, 50:220, :]
             # count time of PDI
             t0 = time.time()
             
             means = unet3d(rdfs)[:, 0, ...]
-            stds = unet3d(rdfs)[:, 1, ...]
-            
             means = np.asarray(means.cpu().detach())
-            stds = np.asarray(stds.cpu().detach())
-            
             patches_means.append(means)
-            patches_stds.append(stds)
 
             time_PDI = time.time() - t0
             print('GPU time = {0}'.format(time_PDI))
             
         patches_means = np.concatenate(patches_means, axis=0)
-        patches_stds = np.concatenate(patches_stds, axis=0)
 
         chi_true = np.squeeze(np.asarray(qsms.cpu().detach()))
         chi_recon = np.squeeze(patches_means)
@@ -167,11 +160,11 @@ if __name__ == '__main__':
 
     adict = {}
     adict['QSMs'] = np.squeeze(np.moveaxis(QSMs, 0, -1))
-    sio.savemat(rootDir+'/result_cv/QSMs_{0}{1}{2}'.format(math.floor(rsa), math.floor(val), math.floor(test))+'.mat', adict)
+    sio.savemat(rootDir+'/result_cv/QSMs_{0}{1}{2}'.format(math.floor(cfl), math.floor(val), math.floor(test))+'.mat', adict)
 
     adict = {}
     adict['STDs'] = np.squeeze(np.moveaxis(STDs, 0, -1))
-    sio.savemat(rootDir+'/result_cv/STDs_{0}{1}{2}'.format(math.floor(rsa), math.floor(val), math.floor(test))+'.mat', adict)
+    sio.savemat(rootDir+'/result_cv/STDs_{0}{1}{2}'.format(math.floor(cfl), math.floor(val), math.floor(test))+'.mat', adict)
 
 
 

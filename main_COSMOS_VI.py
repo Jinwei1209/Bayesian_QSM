@@ -39,7 +39,7 @@ if __name__ == '__main__':
     parser.add_argument('--lambda_tv', type=int, default=20)
     parser.add_argument('--case_validation', type=int, default=6)
     parser.add_argument('--case_test', type=int, default=7)
-    parser.add_argument('--flag_r_train', type=int, default=0)
+    parser.add_argument('--flag_r_train', type=int, default=0)  # fixed r in COSMOS
     opt = {**vars(parser.parse_args())}
 
     os.environ['CUDA_VISIBLE_DEVICES'] = opt['gpu_id'] 
@@ -87,9 +87,9 @@ if __name__ == '__main__':
         flag_gen=flag_gen)
     valLoader = data.DataLoader(dataLoader_val, batch_size=batch_size, shuffle=True, pin_memory=True)
 
-    # weights_dict = torch.load(rootDir+'/weight/weights_sigma={0}_smv={1}_mv8'.format(sigma, 1)+'.pt')
-    # weights_dict['r'] = (torch.ones(1)*r).to(device)
-    # unet3d.load_state_dict(weights_dict)
+    weights_dict = torch.load(rootDir+'/weight/weights_sigma={0}_smv={1}_mv8'.format(sigma, 1)+'.pt')
+    weights_dict['r'] = (torch.ones(1)*r).to(device)
+    unet3d.load_state_dict(weights_dict)
 
     # optimizer
     optimizer = optim.Adam(unet3d.parameters(), lr=lr, betas=(0.5, 0.999))
@@ -100,7 +100,7 @@ if __name__ == '__main__':
         epoch += 1
 
         unet3d.train()
-        for idx, (rdfs, masks, weights, wGs, D) in enumerate(trainLoader):
+        for idx, (rdfs, qsms, masks, weights, wGs, D) in enumerate(trainLoader):
             rdfs = (rdfs.to(device, dtype=torch.float) + trans) * scale
             masks = masks.to(device, dtype=torch.float)
             weights = weights.to(device, dtype=torch.float)
@@ -128,7 +128,7 @@ if __name__ == '__main__':
 
         unet3d.eval()
         with torch.no_grad():  # to solve memory exploration issue
-            for idx, (rdfs, masks, weights, wGs, D) in enumerate(valLoader):
+            for idx, (rdfs, qsms, masks, weights, wGs, D) in enumerate(valLoader):
 
                 rdfs = (rdfs.to(device, dtype=torch.float) + trans) * scale
                 masks = masks.to(device, dtype=torch.float)
