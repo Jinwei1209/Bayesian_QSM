@@ -37,6 +37,7 @@ if __name__ == '__main__':
     # typein parameters
     parser = argparse.ArgumentParser(description='Deep Learning QSM')
     parser.add_argument('--gpu_id', type=str, default='0')
+    parser.add_argument('--lambda_tv', type=float, default=20)
     parser.add_argument('--flag_rsa', type=int, default=-1)
     parser.add_argument('--case_validation', type=int, default=6)
     parser.add_argument('--case_test', type=int, default=7)
@@ -44,6 +45,7 @@ if __name__ == '__main__':
     opt = {**vars(parser.parse_args())}
 
     os.environ['CUDA_VISIBLE_DEVICES'] = opt['gpu_id']
+    Lambda_tv = opt['lambda_tv']
     # total, used = os.popen(
     #     '"nvidia-smi" --query-gpu=memory.total,memory.used --format=csv,nounits,noheader'
     #         ).read().split('\n')[int(opt['gpu_id'])].split(',')
@@ -100,7 +102,7 @@ if __name__ == '__main__':
     print('{0} trainable parameters in total'.format(count_parameters(unet3d)))
     unet3d.to(device)
     # unet3d.load_state_dict(torch.load(rootDir+opt['weight_dir']+'/weights_rsa={0}_validation={1}_test={2}'.format(rsa, val, test)+'.pt'))
-    unet3d.load_state_dict(torch.load(rootDir+opt['weight_dir']+'/weights_vi0_cosmos.pt'))  # vi0 or vi
+    unet3d.load_state_dict(torch.load(rootDir+opt['weight_dir']+'/weights_vi_cosmos_{}.pt'.format(Lambda_tv)))  # vi0 or vi
     unet3d.eval()
 
     print(unet3d.r)
@@ -167,11 +169,11 @@ if __name__ == '__main__':
 
     adict = {}
     adict['QSMs'] = np.squeeze(np.moveaxis(QSMs, 0, -1))
-    sio.savemat(rootDir+'/result_cv/QSMs_{0}{1}{2}'.format(math.floor(rsa), math.floor(val), math.floor(test))+'.mat', adict)
+    sio.savemat(rootDir+'/result_cv/QSMs_{0}{1}{2}_vi'.format(math.floor(rsa), math.floor(val), math.floor(test))+'.mat', adict)
 
     adict = {}
     adict['STDs'] = np.squeeze(np.moveaxis(STDs, 0, -1))
-    sio.savemat(rootDir+'/result_cv/STDs_{0}{1}{2}'.format(math.floor(rsa), math.floor(val), math.floor(test))+'.mat', adict)
+    sio.savemat(rootDir+'/result_cv/STDs_{0}{1}{2}_vi'.format(math.floor(rsa), math.floor(val), math.floor(test))+'.mat', adict)
 
 
 

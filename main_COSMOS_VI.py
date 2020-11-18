@@ -88,7 +88,7 @@ if __name__ == '__main__':
     valLoader = data.DataLoader(dataLoader_val, batch_size=batch_size, shuffle=True, pin_memory=True)
 
     weights_dict = torch.load(rootDir+'/weight/weights_sigma={0}_smv={1}_mv8'.format(sigma, 1)+'.pt')
-    weights_dict['r'] = (torch.ones(1)*r).to(device)
+    # weights_dict['r'] = (torch.ones(1)*r).to(device)
     unet3d.load_state_dict(weights_dict)
 
     # optimizer
@@ -127,6 +127,7 @@ if __name__ == '__main__':
                 % (epoch, niter, time.time()-t0, Lambda_tv, loss_kl+loss_tv, loss_expectation, unet3d.r))
 
         unet3d.eval()
+        loss_total = 0
         with torch.no_grad():  # to solve memory exploration issue
             for idx, (rdfs, qsms, masks, weights, wGs, D) in enumerate(valLoader):
 
@@ -141,10 +142,11 @@ if __name__ == '__main__':
                 loss_expectation, loss_tv = loss_Expectation(
                     outputs=outputs, QSMs=0, in_loss_RDFs=rdfs-trans*scale, fidelity_Ws=weights, 
                     gradient_Ws=wGs, D=np.asarray(D[0, ...]), flag_COSMOS=0, Lambda_tv=Lambda_tv, voxel_size=voxel_size, K=K)
-                loss_total = (loss_kl + loss_expectation + loss_tv).item()
-                print('KL Divergence on validation set = {0}'.format(loss_total))
+                loss_total += (loss_kl + loss_expectation + loss_tv).item()
+            print('KL Divergence on validation set = {0}'.format(loss_total))
         
         val_loss.append(loss_total)
         if val_loss[-1] == min(val_loss):
             if Lambda_tv:
-                torch.save(unet3d.state_dict(), rootDir+folder_weights_VI+'/weights_vi_cosmos_{}.pt'.format(Lambda_tv))
+                torch.save(unet3d.state_dict(), rootDir+folder_weights_VI+'/weights_vi_cosmos_{}_.pt'.format(Lambda_tv))
+        torch.save(unet3d.state_dict(), rootDir+folder_weights_VI+'/weights_vi_cosmos_{}_last_.pt'.format(Lambda_tv))

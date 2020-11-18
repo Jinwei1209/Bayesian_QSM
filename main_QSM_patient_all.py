@@ -179,9 +179,10 @@ if __name__ == '__main__':
 
         if Lambda_tv:
             # weights_dict = torch.load(rootDir+folder_weights_VI+'/weights_lambda_tv={0}_epoch={1}.pt'.format(Lambda_tv, niter))
-            # weights_dict = torch.load(rootDir+folder_weights_VI+'/weights_lambda_tv={0}.pt'.format(Lambda_tv))
-            weights_dict = torch.load(rootDir+folder_weights_VI+'/weights_tv_no_initial_r.pt')
-            weights_dict['r'] = (torch.ones(1)*r).to(device)
+            weights_dict = torch.load(rootDir+folder_weights_VI+'/weights_lambda_tv={0}.pt'.format(Lambda_tv))
+            # weights_dict = torch.load(rootDir+folder_weights_VI+'/weights_tv_no_initial.pt')  # no_initial_r: PDI-VI0 with r fixed = 3e-3, 
+                                                                                                # no_initial: PDI-VI0 with r learned
+            # weights_dict['r'] = (torch.ones(1)*r).to(device)
             unet3d.load_state_dict(weights_dict)
         else:
             unet3d.load_state_dict(torch.load(rootDir+folder_weights_VI+'/weights_no_prior.pt'))
