@@ -36,7 +36,7 @@ if __name__ == '__main__':
     # typein parameters
     parser = argparse.ArgumentParser(description='Deep Learning QSM')
     parser.add_argument('--gpu_id', type=str, default='0')
-    parser.add_argument('--lambda_tv', type=int, default=20)
+    parser.add_argument('--lambda_tv', type=float, default=20)
     parser.add_argument('--case_validation', type=int, default=6)
     parser.add_argument('--case_test', type=int, default=7)
     parser.add_argument('--flag_r_train', type=int, default=0)  # fixed r in COSMOS
