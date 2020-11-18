@@ -147,4 +147,4 @@ if __name__ == '__main__':
         val_loss.append(loss_total)
         if val_loss[-1] == min(val_loss):
             if Lambda_tv:
-                torch.save(unet3d.state_dict(), rootDir+folder_weights_VI+'/weights_vi_cosmos.pt')
+                torch.save(unet3d.state_dict(), rootDir+folder_weights_VI+'/weights_vi_cosmos_{}.pt'.format(Lambda_tv))
