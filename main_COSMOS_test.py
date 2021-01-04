@@ -41,7 +41,7 @@ if __name__ == '__main__':
     parser.add_argument('--flag_rsa', type=int, default=-1)
     parser.add_argument('--case_validation', type=int, default=6)
     parser.add_argument('--case_test', type=int, default=7)
-    parser.add_argument('--weight_dir', type=str, default='weight_cv')  # or 'weights_VI'
+    parser.add_argument('--weight_dir', type=str, default='weights_VI')  # or 'weight_cv'
     opt = {**vars(parser.parse_args())}
 
     os.environ['CUDA_VISIBLE_DEVICES'] = opt['gpu_id']
@@ -102,7 +102,7 @@ if __name__ == '__main__':
     print('{0} trainable parameters in total'.format(count_parameters(unet3d)))
     unet3d.to(device)
     # unet3d.load_state_dict(torch.load(rootDir+opt['weight_dir']+'/weights_rsa={0}_validation={1}_test={2}'.format(rsa, val, test)+'.pt'))
-    unet3d.load_state_dict(torch.load(rootDir+opt['weight_dir']+'/weights_vi_cosmos_{}.pt'.format(Lambda_tv)))  # vi0 or vi
+    unet3d.load_state_dict(torch.load(rootDir+opt['weight_dir']+'/weights_vi_cosmos_{}_last_9.pt'.format(Lambda_tv)))  # vi0 or vi
     unet3d.eval()
 
     print(unet3d.r)

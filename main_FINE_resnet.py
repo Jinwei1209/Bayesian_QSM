@@ -34,7 +34,6 @@ if __name__ == '__main__':
     patientID = opt['patientID']
 
     os.environ['CUDA_VISIBLE_DEVICES'] = opt['gpu_id'] 
-    t0 = time.time()
     device0 = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     device1 = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
     rootDir = '/data/Jinwei/Bayesian_QSM'
@@ -47,7 +46,7 @@ if __name__ == '__main__':
     )
 
     # parameters
-    niter = 50
+    niter = 100
     lr = 1e-3
     batch_size = 1
     B0_dir = (0, 0, 1)
@@ -88,11 +87,11 @@ if __name__ == '__main__':
 
     epoch = 0
     loss_iters = np.zeros(niter)
-    while epoch < niter:
+    while epoch < 2:
         epoch += 1
 
         # training phase
-        for idx, (rdf_inputs, rdfs, masks, weights, wGs) in enumerate(trainLoader):
+        for idx, (rdf_inputs, rdfs, masks, weights, wGs, D_) in enumerate(trainLoader):
 
             if epoch == 1:
                 unet3d.eval(), resnet.eval()
@@ -109,33 +108,40 @@ if __name__ == '__main__':
                 weights = weights.to(device1, dtype=torch.float)
                 wGs = wGs.to(device1, dtype=torch.float)
 
-                if epoch == 2:
-                    qsm_outputs = resnet(inputs_cat).cpu().detach()
-                    QSMnet = np.squeeze(np.asarray(qsm_outputs))
-                    print('Saving initial results')
-                    adict = {}
-                    adict['QSMnet'] = QSMnet
-                    sio.savemat(rootDir+'/QSMnet.mat', adict)
+                qsm_outputs = resnet(inputs_cat).cpu().detach()
+                QSMnet = np.squeeze(np.asarray(qsm_outputs))
+                print('Saving initial results')
+                adict = {}
+                adict['QSMnet'] = QSMnet
+                sio.savemat(rootDir+'/QSMnet.mat', adict)
+    
+    epoch = 0
+    t0 = time.time()
+    # unet3d.to(device1)
+    while epoch < niter:
+        epoch += 1
 
-                loss_fidelity = BayesianQSM_train(
-                    model=resnet,
-                    input_RDFs=inputs_cat,
-                    in_loss_RDFs=rdfs,
-                    QSMs=0,
-                    Masks=masks,
-                    fidelity_Ws=weights,
-                    gradient_Ws=wGs,
-                    D=D,
-                    flag_COSMOS=0,
-                    optimizer=optimizer,
-                    sigma_sq=0,
-                    Lambda_tv=0,
-                    voxel_size=voxel_size,
-                    K=1,
-                    flag_l1=2
-                )
+        loss_fidelity = BayesianQSM_train(
+            model=resnet,
+            input_RDFs=inputs_cat,
+            # model=unet3d,
+            # input_RDFs=rdf_inputs,
+            in_loss_RDFs=rdfs,
+            QSMs=0,
+            Masks=masks,
+            fidelity_Ws=weights,
+            gradient_Ws=wGs,
+            D=D,
+            flag_COSMOS=0,
+            optimizer=optimizer,
+            sigma_sq=0,
+            Lambda_tv=0,
+            voxel_size=voxel_size,
+            K=1,
+            flag_l1=2
+        )
 
-                print('epochs: [%d/%d], time: %ds, Fidelity loss: %f' % (epoch, niter, time.time()-t0, loss_fidelity))
+        print('epochs: [%d/%d], time: %ds, Fidelity loss: %f' % (epoch, niter, time.time()-t0, loss_fidelity))
 
     FINE = resnet(inputs_cat)[:, 0, ...]
     FINE = np.squeeze(np.asarray(FINE.cpu().detach()))

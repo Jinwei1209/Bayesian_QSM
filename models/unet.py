@@ -113,7 +113,7 @@ class Unet(nn.Module):
             if self.bilateral_infer:
                 print('Inference Process of PDI')
                 return torch.cat([x1, x1], 1)
-            else:
+            else: 
                 x2 = x
                 for idx, up in enumerate(self.upsampling_path2):
                     x2 = up(x2, blocks[-idx-1])

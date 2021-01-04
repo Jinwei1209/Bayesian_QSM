@@ -67,6 +67,7 @@ class Patient_data_loader(data.Dataset):
         S = SMV_kernel(volume_size, voxel_size, radius)
         Mask = SMV(Mask, volume_size, voxel_size, radius) > 0.999
         D = np.real(S*D)
+        self.D = D
         tempn = np.sqrt(SMV(tempn**2, volume_size, voxel_size, radius)+tempn**2)
 
         # gradient Mask
@@ -91,7 +92,7 @@ class Patient_data_loader(data.Dataset):
 
     def __getitem__(self, idx):
         if self.flag_input:
-            return self.RDF_input[idx], self.RDF[idx], self.Mask[idx], self.Data_weights[idx], self.wG[idx]
+            return self.RDF_input[idx], self.RDF[idx], self.Mask[idx], self.Data_weights[idx], self.wG[idx], self.D
         else:
             return self.RDF[idx], self.Mask[idx], self.Data_weights[idx], self.wG[idx] 
 

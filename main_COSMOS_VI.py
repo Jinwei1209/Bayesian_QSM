@@ -31,7 +31,7 @@ if __name__ == '__main__':
     trans = 0.15
     scale = 3
     K = 5  # 5 default
-    r = 3e-3
+    r = 3e-3  # 3e-3 default
 
     # typein parameters
     parser = argparse.ArgumentParser(description='Deep Learning QSM')
@@ -87,8 +87,8 @@ if __name__ == '__main__':
         flag_gen=flag_gen)
     valLoader = data.DataLoader(dataLoader_val, batch_size=batch_size, shuffle=True, pin_memory=True)
 
-    weights_dict = torch.load(rootDir+'/weight/weights_sigma={0}_smv={1}_mv8'.format(sigma, 1)+'.pt')
-    # weights_dict['r'] = (torch.ones(1)*r).to(device)
+    weights_dict = torch.load(rootDir+'/weight/weights_sigma={0}_smv={1}_mv9'.format(sigma, 1)+'.pt')
+    weights_dict['r'] = (torch.ones(1)*r).to(device)
     unet3d.load_state_dict(weights_dict)
 
     # optimizer
@@ -148,5 +148,5 @@ if __name__ == '__main__':
         val_loss.append(loss_total)
         if val_loss[-1] == min(val_loss):
             if Lambda_tv:
-                torch.save(unet3d.state_dict(), rootDir+folder_weights_VI+'/weights_vi_cosmos_{}_.pt'.format(Lambda_tv))
-        torch.save(unet3d.state_dict(), rootDir+folder_weights_VI+'/weights_vi_cosmos_{}_last_.pt'.format(Lambda_tv))
+                torch.save(unet3d.state_dict(), rootDir+folder_weights_VI+'/weights_vi_cosmos_{}_9.pt'.format(Lambda_tv))
+        torch.save(unet3d.state_dict(), rootDir+folder_weights_VI+'/weights_vi_cosmos_{}_last_9.pt'.format(Lambda_tv))

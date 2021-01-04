@@ -30,7 +30,7 @@ if __name__ == '__main__':
     trans = 0.15
     scale = 3
     K = 5  # 5 default
-    r = 3e-3 # 3e-3 for PDI-VI0, 0.001312 for PDI-VI
+    r = 3e-3
 
     # typein parameters
     parser = argparse.ArgumentParser(description='Deep Learning QSM')
@@ -99,14 +99,15 @@ if __name__ == '__main__':
         D = dipole_kernel(volume_size, voxel_size, B0_dir)
         D_val = np.real(S * D)
 
-        # weights_dict = torch.load(rootDir+'/weight/weights_sigma={0}_smv={1}_mv8'.format(sigma, 1)+'.pt')
-        # weights_dict['r'] = (torch.ones(1)*r).to(device)
-        # unet3d.load_state_dict(weights_dict)
+        weights_dict = torch.load(rootDir+'/weight/weights_sigma={0}_smv={1}_mv6'.format(sigma, 1)+'.pt')  # mv6 for plotting kl loss of validation
+        weights_dict['r'] = (torch.ones(1)*r).to(device)
+        unet3d.load_state_dict(weights_dict)
 
         # optimizer
         optimizer = optim.Adam(unet3d.parameters(), lr=lr, betas=(0.5, 0.999))
 
         epoch = 0
+        loss_iters = np.zeros(niter)
         while epoch < niter:
             epoch += 1
 
@@ -155,12 +156,15 @@ if __name__ == '__main__':
                         gradient_Ws=wGs, D=D_val, flag_COSMOS=0, Lambda_tv=Lambda_tv, voxel_size=voxel_size, K=K)
                     loss_total = (loss_kl + loss_expectation + loss_tv).item()
                     print('KL Divergence on validation set = {0}'.format(loss_total))
+
+                    loss_iters[epoch-1] = loss_total
+                    np.save(rootDir+'/loss_validation_{0}_VI'.format(patient_type), loss_iters)
             
             val_loss.append(loss_total)
             if val_loss[-1] == min(val_loss):
                 if Lambda_tv:
-                    # torch.save(unet3d.state_dict(), rootDir+folder_weights_VI+'/weights_lambda_tv={0}_epoch={1}.pt'.format(Lambda_tv, niter))
-                    torch.save(unet3d.state_dict(), rootDir+folder_weights_VI+'/weights_tv_no_initial.pt')  # no_initial_r: PDI-VI0 with r fixed = 3e-3, 
+                    torch.save(unet3d.state_dict(), rootDir+folder_weights_VI+'/weights_lambda_tv={0}.pt'.format(Lambda_tv))
+                    # torch.save(unet3d.state_dict(), rootDir+folder_weights_VI+'/weights_tv_no_initial.pt')  # no_initial_r: PDI-VI0 with r fixed = 3e-3, 
                                                                                                             # no_initial: PDI-VI0 with r learned
                 else:
                     torch.save(unet3d.state_dict(), rootDir+folder_weights_VI+'/weights_no_prior.pt')
@@ -179,8 +183,8 @@ if __name__ == '__main__':
 
         if Lambda_tv:
             # weights_dict = torch.load(rootDir+folder_weights_VI+'/weights_lambda_tv={0}_epoch={1}.pt'.format(Lambda_tv, niter))
-            weights_dict = torch.load(rootDir+folder_weights_VI+'/weights_lambda_tv={0}.pt'.format(Lambda_tv))
-            # weights_dict = torch.load(rootDir+folder_weights_VI+'/weights_tv_no_initial.pt')  # no_initial_r: PDI-VI0 with r fixed = 3e-3, 
+            # weights_dict = torch.load(rootDir+folder_weights_VI+'/weights_lambda_tv={0}.pt'.format(Lambda_tv))
+            weights_dict = torch.load(rootDir+folder_weights_VI+'/weights_tv_no_initial.pt')  # no_initial_r: PDI-VI0 with r fixed = 3e-3, 
                                                                                                 # no_initial: PDI-VI0 with r learned
             # weights_dict['r'] = (torch.ones(1)*r).to(device)
             unet3d.load_state_dict(weights_dict)

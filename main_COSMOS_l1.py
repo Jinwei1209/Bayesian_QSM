@@ -62,10 +62,10 @@ if __name__ == '__main__':
 
     if flag_smv:
         B0_dir = (0, 0, 1)
-        patchSize = (128, 128, 32)  # (64, 64, 21)
+        patchSize = (128, 128, 32)  # (64, 64, 21) or (128, 128, 32)
         # patchSize_padding = (64, 64, 128)
         patchSize_padding = patchSize
-        extraction_step = (42, 42, 11)  # (21, 21, 6)
+        extraction_step = (42, 42, 11)  # (21, 21, 6) or (42, 42, 11)
         voxel_size = (1, 1, 3)
         D = dipole_kernel(patchSize_padding, voxel_size, B0_dir)
         # S = SMV_kernel(patchSize, voxel_size, radius=5)
@@ -225,4 +225,4 @@ if __name__ == '__main__':
         % (epoch, niter, Validation_loss[-1]))
 
         if Validation_loss[-1] == min(Validation_loss):
-            torch.save(unet3d.state_dict(), rootDir+'/rsa={0}_validation={1}_test={2}'.format(opt['flag_rsa'], opt['case_validation'], opt['case_test'])+'.pt')
+            torch.save(unet3d.state_dict(), rootDir+'/rsa={0}_validation={1}_test={2}__'.format(opt['flag_rsa'], opt['case_validation'], opt['case_test'])+'.pt')

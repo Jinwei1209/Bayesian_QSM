@@ -57,10 +57,24 @@ def BayesianQSM_train(
             return err.item()
 
     else:
-        loss = loss_FINE(outputs, in_loss_RDFs, fidelity_Ws, D)
-        loss.backward()
-        optimizer.step()
-        return loss.item()
+        # fidelity loss
+        loss_fidelity = loss_FINE(outputs, in_loss_RDFs, fidelity_Ws, D)
+        # TV prior
+        if Lambda_tv:
+            grad = torch.zeros(*(outputs.size()+(3,))).to('cuda')
+            grad[..., 0] = dxp(outputs)/voxel_size[0]
+            grad[..., 1] = dyp(outputs)/voxel_size[1]
+            grad[..., 2] = dzp(outputs)/voxel_size[2]
+            loss_tv = Lambda_tv*torch.sum(torch.abs(gradient_Ws*grad))/(2*outputs.size()[0])
+            loss = loss_fidelity + loss_tv
+            loss.backward()
+            optimizer.step()
+            return loss_fidelity.item(), loss_tv.item()
+        else:
+            loss = loss_fidelity
+            loss.backward()
+            optimizer.step()
+            return loss_fidelity.item()
 
 def utfi_train(
     model,

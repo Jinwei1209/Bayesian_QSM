@@ -20,6 +20,9 @@ from utils.files import *
 from utils.test import *
 from utils.loss import *
 
+'''
+    old simulation results
+'''
 if __name__ == '__main__':
 
     # default params
@@ -71,7 +74,7 @@ if __name__ == '__main__':
     # dir simu6: weights_vi_cosmos.pt
     # weights_dict = torch.load(rootDir+'/weight/weights_sigma={0}_smv={1}_mv8'.format(0, 1)+'.pt')
     # weights_dict = torch.load(rootDir+'/weight_cv/weights_rsa=-1_validation=6_test=7.pt')
-    weights_dict = torch.load(rootDir+'/weights_VI/weights_vi_cosmos.pt')
+    weights_dict = torch.load(rootDir+'/weights_VI/weights_vi0_cosmos.pt')
     unet3d.load_state_dict(weights_dict)
     unet3d.train()
 

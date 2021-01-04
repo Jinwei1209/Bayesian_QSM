@@ -19,6 +19,7 @@ class Patient_data_loader_all(data.Dataset):
         self.patientType = patientType
         self.dataFolder = dataFolder
         self.flag_RDF_input = flag_RDF_input
+        self.flag_RDF_gen = flag_RDF_gen
         if patientType == 'ICH':
             print('Loading ICH data')
             self.list_IDs = [1, 4, 6, 9]
