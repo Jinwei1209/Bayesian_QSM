@@ -47,7 +47,7 @@ if __name__ == '__main__':
 
     # parameters
     niter = 100
-    lr = 1e-3
+    lr = 3e-4
     batch_size = 1
     B0_dir = (0, 0, 1)
 
@@ -100,6 +100,7 @@ if __name__ == '__main__':
                 QSMnet = np.squeeze(np.asarray(qsm_inputs))
 
             else:
+                # to GPU device
                 rdf_inputs = rdf_inputs.to(device1, dtype=torch.float)
                 qsm_inputs1 = qsm_inputs.to(device1, dtype=torch.float)
                 inputs_cat = torch.cat((rdf_inputs, qsm_inputs1), dim=1)
@@ -108,40 +109,45 @@ if __name__ == '__main__':
                 weights = weights.to(device1, dtype=torch.float)
                 wGs = wGs.to(device1, dtype=torch.float)
 
+                # save initial QSM
                 qsm_outputs = resnet(inputs_cat).cpu().detach()
                 QSMnet = np.squeeze(np.asarray(qsm_outputs))
                 print('Saving initial results')
                 adict = {}
                 adict['QSMnet'] = QSMnet
                 sio.savemat(rootDir+'/QSMnet.mat', adict)
+
+                # to complex array
+                D = np.repeat(D[np.newaxis, np.newaxis, ..., np.newaxis], qsm_outputs.size()[0], axis=0)
+                D_cplx = np.concatenate((D, np.zeros(D.shape)), axis=-1)
+                D_cplx = torch.tensor(D_cplx, device=device1).float()
+
+                in_loss_RDFs_cplx = torch.zeros(*(qsm_outputs.size()+(2,))).to(device1)
+                in_loss_RDFs_cplx[..., 0] = rdfs
+
+                fidelity_Ws_cplx = torch.zeros(*(qsm_outputs.size()+(2,))).to(device1)
+                fidelity_Ws_cplx[..., 0] = weights
     
     epoch = 0
     t0 = time.time()
-    # unet3d.to(device1)
     while epoch < niter:
         epoch += 1
+        optimizer.zero_grad()
+        # forward
+        outputs = resnet(inputs_cat)
+        # to compelx array
+        outputs = outputs[:, 0:1, ...]
+        outputs_cplx = torch.zeros(*(outputs.size()+(2,))).to(device1)
+        outputs_cplx[..., 0] = outputs
+        # fidelity loss
+        RDFs_outputs = torch.ifft(cplx_mlpy(torch.fft(outputs_cplx, 3), D_cplx), 3)
+        diff = torch.abs(in_loss_RDFs_cplx - RDFs_outputs)
+        loss = torch.sum((fidelity_Ws_cplx*diff)**2)
+        # backward
+        loss.backward()
+        optimizer.step()
 
-        loss_fidelity = BayesianQSM_train(
-            model=resnet,
-            input_RDFs=inputs_cat,
-            # model=unet3d,
-            # input_RDFs=rdf_inputs,
-            in_loss_RDFs=rdfs,
-            QSMs=0,
-            Masks=masks,
-            fidelity_Ws=weights,
-            gradient_Ws=wGs,
-            D=D,
-            flag_COSMOS=0,
-            optimizer=optimizer,
-            sigma_sq=0,
-            Lambda_tv=0,
-            voxel_size=voxel_size,
-            K=1,
-            flag_l1=2
-        )
-
-        print('epochs: [%d/%d], time: %ds, Fidelity loss: %f' % (epoch, niter, time.time()-t0, loss_fidelity))
+        print('epochs: [%d/%d], time: %ds, Fidelity loss: %f' % (epoch, niter, time.time()-t0, loss.item()))
 
     FINE = resnet(inputs_cat)[:, 0, ...]
     FINE = np.squeeze(np.asarray(FINE.cpu().detach()))
