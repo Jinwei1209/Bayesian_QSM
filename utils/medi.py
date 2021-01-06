@@ -20,7 +20,7 @@ def dipole_kernel(matrix_size, voxel_size, B0_dir, Fourier_space=1):
         
         D = 1/3 - (X*B0_dir[0] + Y*B0_dir[1] + Z*B0_dir[2])**2/(X**2 + Y**2 + Z**2)
         D[np.isnan(D)] = 0
-        D = np.fft.fftshift(D);
+        D = np.fft.fftshift(D)
 
     else:
         x = np.arange(-matrix_size[1]/2, matrix_size[1]/2, 1)

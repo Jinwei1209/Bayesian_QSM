@@ -100,7 +100,8 @@ if __name__ == '__main__':
 
             if epoch == 1:
                 unet3d.eval(), resnet.eval()
-                rdf_inputs = rdf_inputs.to(device0, dtype=torch.float)
+                unet3d.to(device)
+                rdf_inputs = rdf_inputs.to(device, dtype=torch.float)
                 with torch.no_grad():
                     qsm_inputs = unet3d(rdf_inputs).cpu().detach()
                 QSMnet = np.squeeze(np.asarray(qsm_inputs))
@@ -156,7 +157,7 @@ if __name__ == '__main__':
             loss = loss_fidelity + loss_l2
             loss.backward()
             optimizer.step()
-            print('epochs: [%d/%d], Ks: [%d/%d], time: %ds, Fidelity loss: %f' % (epoch, niter, k, K, time.time()-t0, loss_fidelity.item()))
+            print('epochs: [%d/%d], Ks: [%d/%d], time: %ds, Fidelity loss: %f' % (epoch, niter, k+1, K, time.time()-t0, loss_fidelity.item()))
 
         # dual update
         with torch.no_grad():
