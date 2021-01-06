@@ -1,4 +1,5 @@
 import numpy as np
+import torch.fft as fft
 import torch
 PRECISION = 'float32'
 EPS = 1E-8
@@ -147,6 +148,68 @@ def gradient_mask(iMag, Mask, voxel_size=[1, 1, 3], percentage=0.9):
     wG = wG.astype(float)
     return wG
 
+# DLL2 step
+class DLL2():
+    '''
+        D: dipole kernel;
+        m: fidelity weighting matrix;
+        b: local field;
+        device: GPU device;
+        P: preconditioner;
+        alpha: parameter on the fidelity term;
+        rho: parameter on the regularization term;
+    '''
+    def __init__(self, D, m, b, device, P=1, alpha=0.5, rho=10):
+        self.D = D
+        self.m = m
+        self.b = b
+        self.device = device
+        self.P = P
+        self.alpha = alpha
+        self.rho = rho
+        self.Dconv = lambda x: torch.real(fft.ifftn(self.D * fft.fftn(x, dim=[0, 1, 2])))
 
+    # system matrix in CG iteration
+    def AtA(self, x):
+        '''
+            x: chi;
+        '''
+        return self.alpha * self.P * self.Dconv(torch.conj(self.m) * self.m * self.Dconv(self.P * x)) + self.rho * self.P**2 * x
+    
+    # right hand side in CG iteration
+    def rhs(self, phi, mu):
+        ''' 
+            phi: network output;
+            mu: dual variable;
+        '''
+        return self.alpha * self.P * self.Dconv(torch.conj(self.m) * self.m * self.b) + self.rho * self.P * (phi - mu)
+    
+    def CG_body(self, i, rTr, x, r, p):
+        Ap = self.AtA(p)
+        alpha = rTr / torch.sum(torch.conj(p) * Ap)
 
+        x = x + p * alpha
+        r = r - Ap * alpha
+        rTrNew = torch.sum(torch.conj(r) * r)
 
+        beta = rTrNew /  rTr
+        p = r + p * beta
+        return i+1, rTrNew, x, r, p
+
+    def while_cond(self, i, rTr, max_iter=10):
+        return (i<max_iter) and (rTr>1e-10)
+
+    def CG_iter(self, phi, mu, max_iter=10):
+        rhs = self.rhs(phi, mu)
+        x = phi / self.P
+        x[x != x] = 0
+
+        i, r, p = 0, rhs, rhs
+        rTr = torch.sum(torch.conj(r) * r)
+        while self.while_cond(i, rTr, max_iter):
+            i, rTr, x, r, p = self.CG_body(i, rTr, x, r, p)
+            if i % 10 == 0:
+                print('i = {0}, rTr = {1}'.format(i, rTr))
+        return x
+
+     

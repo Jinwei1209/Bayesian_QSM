@@ -26,7 +26,7 @@ if __name__ == '__main__':
     # default parameters
     niter = 100
     lr = 1e-3
-    batch_size = 28
+    batch_size = 8
     flag_smv = 1
     flag_gen = 1
     trans = 0  # 0.15
@@ -65,10 +65,12 @@ if __name__ == '__main__':
 
     if flag_smv:
         B0_dir = (0, 0, 1)
-        patchSize = (64, 64, 32)  # (64, 64, 21)
+        # patchSize = (64, 64, 32)  # (64, 64, 21)
+        patchSize = (96, 96, 32)
         # patchSize_padding = (64, 64, 128)
         patchSize_padding = patchSize
-        extraction_step = (21, 21, 6)  # (21, 21, 7)
+        # extraction_step = (21, 21, 6)  # (21, 21, 7)
+        extraction_step = (32, 32, 10)
         voxel_size = (1, 1, 3)
         D = dipole_kernel(patchSize_padding, voxel_size, B0_dir)
         # S = SMV_kernel(patchSize, voxel_size, radius=5)
