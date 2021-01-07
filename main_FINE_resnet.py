@@ -10,12 +10,14 @@ import argparse
 from torch.utils import data
 from loader.Patient_data_loader import Patient_data_loader
 from loader.Patient_data_loader_all import Patient_data_loader_all
+from loader.Simulation_ich_loader2  import Simulation_ICH_loader
 from models.unet import Unet
 from models.resBlock import ResBlock
 from utils.train import BayesianQSM_train
 from utils.medi import SMV_kernel, dipole_kernel, DLL2
 from utils.loss import *
 from utils.files import *
+from utils.test import compute_rmse
 
 '''
     FINE of resnet on top of pre-trained unet3d and resnet
@@ -29,8 +31,6 @@ if __name__ == '__main__':
     parser.add_argument('--patientID', type=int, default=8)
     opt = {**vars(parser.parse_args())}
 
-    # python main_QSM_patient.py --flag_r_train=1 --patientID=8 (or 16)
-
     patient_type = opt['patient_type']
     patientID = opt['patientID']
 
@@ -40,26 +40,23 @@ if __name__ == '__main__':
     rootDir = '/data/Jinwei/Bayesian_QSM'
 
     # dataloader
-    dataLoader_train = Patient_data_loader(
-        patientType=patient_type, 
-        patientID=patientID,
-        flag_input=1
+    # dataLoader_train = Patient_data_loader(
+    #     patientType=patient_type, 
+    #     patientID=patientID,
+    #     flag_input=1
+    # )
+    dataLoader_train = Simulation_ICH_loader(
+        split = 'test'
     )
 
     # parameters
     niter = 10
-    K = 1
+    K = 2
     lr = 1e-4
     batch_size = 1
     B0_dir = (0, 0, 1)
-
     voxel_size = dataLoader_train.voxel_size
     volume_size = dataLoader_train.volume_size
-    S = SMV_kernel(volume_size, voxel_size, radius=5)
-    D = dipole_kernel(volume_size, voxel_size, B0_dir)
-    D = np.real(S * D)
-    D = D[np.newaxis, np.newaxis, ...]
-    D = torch.tensor(D, device=device, dtype=torch.complex64)
 
     trainLoader = data.DataLoader(dataLoader_train, batch_size=batch_size, shuffle=True)
 
@@ -88,15 +85,13 @@ if __name__ == '__main__':
 
     # optimizer
     optimizer = optim.Adam(resnet.parameters(), lr=lr, betas=(0.5, 0.999))
-    # optimizer = optim.Adam(unet3d.parameters(), lr=lr, betas=(0.5, 0.999))
 
     epoch = 0
     loss_iters = np.zeros(niter)
     while epoch < 2:
         epoch += 1
-
-        # training phase
-        for idx, (rdf_inputs, rdfs, masks, weights, wGs, D_) in enumerate(trainLoader):
+        # for idx, (rdf_inputs, rdfs, masks, weights, wGs, D) in enumerate(trainLoader):  # for real rdf
+        for idx, (qsms, rdf_inputs, rdfs, masks, weights, wGs, D) in enumerate(trainLoader):  # for simulated rdf
 
             if epoch == 1:
                 unet3d.eval(), resnet.eval()
@@ -112,9 +107,18 @@ if __name__ == '__main__':
                 qsm_inputs1 = qsm_inputs.to(device, dtype=torch.float)
                 inputs_cat = torch.cat((rdf_inputs, qsm_inputs1), dim=1)
                 rdfs = rdfs.to(device, dtype=torch.float)
-                masks = masks.to(device, dtype=torch.float)
                 weights = weights.to(device, dtype=torch.float)
                 wGs = wGs.to(device, dtype=torch.float)
+                D = D.to(device, dtype=torch.complex64)[None, ...]
+
+                # label
+                try:
+                    chi_true = np.squeeze(np.asarray(qsms * masks))
+                    print('Using simulated RDF')
+                    flag = 1
+                except:
+                    print('Using real RDF')
+                    flag = 0
 
                 # save initial QSM
                 with torch.no_grad():
@@ -129,7 +133,7 @@ if __name__ == '__main__':
     t0 = time.time()
     mu = torch.zeros(volume_size, device=device)
     alpha = 0.5 * torch.ones(1, device=device)
-    rho = 50 * torch.ones(1, device=device)
+    rho = 10 * torch.ones(1, device=device)
     P = 1 * torch.ones(1, device=device)
     # P = outputs[0, 0, ...]
     while epoch < niter:
@@ -144,6 +148,10 @@ if __name__ == '__main__':
             adict['DLL2'] = np.squeeze(np.asarray(x.cpu().detach()))
             sio.savemat(rootDir+'/DLL2.mat', adict)
 
+            if flag == 1:
+                chi_recon = np.squeeze(np.asarray(x.cpu().detach()))
+                print('RMSE = {} in DLL2'.format(compute_rmse(chi_recon, chi_true)))
+
         # network update
         for k in range(K):
             optimizer.zero_grad()
@@ -155,9 +163,14 @@ if __name__ == '__main__':
             loss_fidelity = (1 - alpha) * 0.5 * torch.sum((weights*diff)**2)
             loss_l2 = rho * 0.5 * torch.sum((x - outputs[0, 0, ...] + mu)**2)
             loss = loss_fidelity + loss_l2
+            # loss = loss_fidelity
             loss.backward()
             optimizer.step()
             print('epochs: [%d/%d], Ks: [%d/%d], time: %ds, Fidelity loss: %f' % (epoch, niter, k+1, K, time.time()-t0, loss_fidelity.item()))
+
+            if flag == 1:
+                chi_recon = np.squeeze(np.asarray(outputs.cpu().detach()))
+                print('RMSE = {} in FINE'.format(compute_rmse(chi_recon, chi_true)))
 
         # dual update
         with torch.no_grad():

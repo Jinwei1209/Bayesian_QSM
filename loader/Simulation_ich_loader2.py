@@ -7,7 +7,7 @@ from utils.medi import *
 from utils.data import *
 
 '''
-dataloader of simulated ICH patient (main_simulation_ich.py)
+dataloader of simulated ICH patient (main_FINE_resnet.py)
 '''
 class Simulation_ICH_loader(data.Dataset):
     def __init__(
@@ -69,6 +69,7 @@ class Simulation_ICH_loader(data.Dataset):
         filename = '{0}/Mask.mat'.format(dataDir)
         Mask = np.real(load_mat(filename, varname='Mask'))
         Mask = SMV(Mask, volume_size, voxel_size, radius) > 0.999
+        QSM = QSM * Mask
 
         # filename = '{0}/iMag_simu.mat'.format(dataDir)
         # iMag = np.real(load_mat(filename, varname='iMag_simu'))
@@ -82,14 +83,15 @@ class Simulation_ICH_loader(data.Dataset):
         N_std = np.real(load_mat(filename, varname='N_std'))
         tempn = np.double(N_std)
 
-        D = dipole_kernel(volume_size, voxel_size, B0_dir)
-        S = SMV_kernel(volume_size, voxel_size, radius)
-        D = np.real(S*D)
+        D = np.real(dipole_kernel(volume_size, voxel_size, B0_dir))
+        # S = SMV_kernel(volume_size, voxel_size, radius)
+        # D = np.real(S*D)
         self.D = D
         tempn = np.sqrt(SMV(tempn**2, volume_size, voxel_size, radius)+tempn**2)
 
         wG = gradient_mask(iMag, Mask)
         Data_weight = np.real(dataterm_mask(tempn, Mask, Normalize=False))
+        Data_weight = np.ones(Data_weight.shape) * np.mean(Data_weight[Mask==1])
 
         sigma = 1
         noise = N_std * np.random.normal(0, sigma)
@@ -97,13 +99,13 @@ class Simulation_ICH_loader(data.Dataset):
         # filename = '{0}/rdf_simu.mat'.format(dataDir)
         # RDF = np.real(load_mat(filename, varname='rdf_simu'))
         RDF = np.real(np.fft.ifftn(np.fft.fftn(QSM) * D)).astype(np.float32)
-        RDF = np.real(RDF*Mask) + noise
+        RDF = (np.real(RDF) + noise) * Mask
 
-        filename = '{0}/RDF.mat'.format(dataDir)
-        RDF_input = np.real(load_mat(filename, varname='RDF'))
-        RDF_input = RDF_input - SMV(RDF_input, volume_size, voxel_size, radius)
-        RDF_input = np.real(RDF_input*Mask)/3.9034 + noise
-        # RDF_input = RDF
+        # filename = '{0}/RDF.mat'.format(dataDir)
+        # RDF_input = np.real(load_mat(filename, varname='RDF'))
+        # RDF_input = RDF_input - SMV(RDF_input, volume_size, voxel_size, radius)
+        # RDF_input = np.real(RDF_input*Mask)/3.9034 + noise
+        RDF_input = RDF
 
         self.QSM = QSM[np.newaxis, np.newaxis, ...]
         self.RDF_input = RDF_input[np.newaxis, np.newaxis, ...]
