@@ -29,6 +29,7 @@ if __name__ == '__main__':
     parser.add_argument('--gpu_id', type=str, default='0, 1')
     parser.add_argument('--patient_type', type=str, default='ICH')  # or MS_old, MS_new
     parser.add_argument('--patientID', type=int, default=8)
+    parser.add_argument('--optm', type=int, default=0) # 0: Adam, 1: LBFGS
     opt = {**vars(parser.parse_args())}
 
     patient_type = opt['patient_type']
@@ -50,9 +51,8 @@ if __name__ == '__main__':
     )
 
     # parameters
-    niter = 10
     K = 2
-    lr = 1e-4
+    lr = 1e-3
     batch_size = 1
     B0_dir = (0, 0, 1)
     voxel_size = dataLoader_train.voxel_size
@@ -84,7 +84,12 @@ if __name__ == '__main__':
     resnet.load_state_dict(weights_dict)
 
     # optimizer
-    optimizer = optim.Adam(resnet.parameters(), lr=lr, betas=(0.5, 0.999))
+    if opt['optm'] == 1:
+        optimizer = optim.LBFGS(resnet.parameters(), history_size=3, max_iter=4)
+        niter = 3
+    else:
+        optimizer = optim.Adam(resnet.parameters(), lr=lr, betas=(0.5, 0.999))
+        niter = 10
 
     epoch = 0
     loss_iters = np.zeros(niter)
@@ -128,18 +133,22 @@ if __name__ == '__main__':
                 adict = {}
                 adict['QSMnet'] = QSMnet
                 sio.savemat(rootDir+'/QSMnet.mat', adict)
+
+                if flag == 1:
+                    print('RMSE = {} in QSMnet'.format(compute_rmse(QSMnet, chi_true)))
     
     epoch = 0
     t0 = time.time()
     mu = torch.zeros(volume_size, device=device)
-    alpha = 0.5 * torch.ones(1, device=device)
-    rho = 10 * torch.ones(1, device=device)
-    P = 1 * torch.ones(1, device=device)
-    # P = outputs[0, 0, ...]
+    alpha = 0.5 * torch.ones(1, device=device)  # 0.5
+    rho = 30 * torch.ones(1, device=device)  # 30
+    # P = 1 * torch.ones(1, device=device)
+    P = outputs[0, 0, ...]
     while epoch < niter:
         epoch += 1
         # dll2 update
         with torch.no_grad():
+            # P = outputs[0, 0, ...]  # bad dll2
             dc_layer = DLL2(D[0, 0, ...], weights[0, 0, ...], rdfs[0, 0, ...], \
                             device=device, P=P, alpha=alpha, rho=rho)
             x = dc_layer.CG_iter(phi=outputs[0, 0, ...], mu=mu, max_iter=100)
@@ -154,18 +163,34 @@ if __name__ == '__main__':
 
         # network update
         for k in range(K):
-            optimizer.zero_grad()
+            
+            def closure():
+                optimizer.zero_grad()
+                outputs = resnet(inputs_cat)
+                outputs_cplx = outputs.type(torch.complex64)
+                # loss
+                RDFs_outputs = torch.real(fft.ifftn((fft.fftn(outputs_cplx, dim=[2, 3, 4]) * D), dim=[2, 3, 4]))
+                diff = torch.abs(rdfs - RDFs_outputs)
+                loss_fidelity = (1 - alpha) * 0.5 * torch.sum((weights*diff)**2)
+                loss_l2 = rho * 0.5 * torch.sum((x - outputs[0, 0, ...] + mu)**2)
+                loss = loss_fidelity + loss_l2
+                # loss = loss_fidelity
+                loss.backward()
+                return loss  
+            optimizer.step(closure)
+    
+            # optimizer.zero_grad()
             outputs = resnet(inputs_cat)  
             outputs_cplx = outputs.type(torch.complex64)
             # loss
             RDFs_outputs = torch.real(fft.ifftn((fft.fftn(outputs_cplx, dim=[2, 3, 4]) * D), dim=[2, 3, 4]))
             diff = torch.abs(rdfs - RDFs_outputs)
             loss_fidelity = (1 - alpha) * 0.5 * torch.sum((weights*diff)**2)
-            loss_l2 = rho * 0.5 * torch.sum((x - outputs[0, 0, ...] + mu)**2)
-            loss = loss_fidelity + loss_l2
-            # loss = loss_fidelity
-            loss.backward()
-            optimizer.step()
+            # loss_l2 = rho * 0.5 * torch.sum((x - outputs[0, 0, ...] + mu)**2)
+            # loss = loss_fidelity + loss_l2
+            # # loss = loss_fidelity
+            # loss.backward()
+            # optimizer.step()
             print('epochs: [%d/%d], Ks: [%d/%d], time: %ds, Fidelity loss: %f' % (epoch, niter, k+1, K, time.time()-t0, loss_fidelity.item()))
 
             if flag == 1:
