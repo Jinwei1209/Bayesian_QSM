@@ -17,7 +17,7 @@ from utils.train import BayesianQSM_train
 from utils.medi import SMV_kernel, dipole_kernel, DLL2
 from utils.loss import *
 from utils.files import *
-from utils.test import compute_rmse
+from utils.test import compute_rmse, ssim3D
 
 '''
     FINE of resnet on top of pre-trained unet3d and resnet
@@ -129,13 +129,15 @@ if __name__ == '__main__':
                 with torch.no_grad():
                     outputs = resnet(inputs_cat)
                 QSMnet = np.squeeze(np.asarray(outputs.cpu().detach()))
+                
                 print('Saving initial results')
                 adict = {}
                 adict['QSMnet'] = QSMnet
                 sio.savemat(rootDir+'/QSMnet.mat', adict)
 
                 if flag == 1:
-                    print('RMSE = {} in QSMnet'.format(compute_rmse(QSMnet, chi_true)))
+                    print('RMSE = {} in QSMnet, SSIM = {} in QSMnet'.format(compute_rmse(QSMnet, chi_true), \
+                          ssim3D(torch.tensor(QSMnet[np.newaxis, np.newaxis, ...]), torch.tensor(chi_true[np.newaxis, np.newaxis, ...]))))
     
     epoch = 0
     t0 = time.time()
@@ -148,7 +150,6 @@ if __name__ == '__main__':
         epoch += 1
         # dll2 update
         with torch.no_grad():
-            # P = outputs[0, 0, ...]  # bad dll2
             dc_layer = DLL2(D[0, 0, ...], weights[0, 0, ...], rdfs[0, 0, ...], \
                             device=device, P=P, alpha=alpha, rho=rho)
             x = dc_layer.CG_iter(phi=outputs[0, 0, ...], mu=mu, max_iter=100)
@@ -159,11 +160,11 @@ if __name__ == '__main__':
 
             if flag == 1:
                 chi_recon = np.squeeze(np.asarray(x.cpu().detach()))
-                print('RMSE = {} in DLL2'.format(compute_rmse(chi_recon, chi_true)))
+                print('RMSE = {} in DLL2, SSIM = {} in DLL2'.format(compute_rmse(chi_recon, chi_true), \
+                      ssim3D(torch.tensor(chi_recon[np.newaxis, np.newaxis, ...]), torch.tensor(chi_true[np.newaxis, np.newaxis, ...]))))
 
         # network update
         for k in range(K):
-            
             def closure():
                 optimizer.zero_grad()
                 outputs = resnet(inputs_cat)
@@ -178,24 +179,20 @@ if __name__ == '__main__':
                 loss.backward()
                 return loss  
             optimizer.step(closure)
-    
-            # optimizer.zero_grad()
+
+            # forward again to compute fidelity loss
             outputs = resnet(inputs_cat)  
             outputs_cplx = outputs.type(torch.complex64)
             # loss
             RDFs_outputs = torch.real(fft.ifftn((fft.fftn(outputs_cplx, dim=[2, 3, 4]) * D), dim=[2, 3, 4]))
             diff = torch.abs(rdfs - RDFs_outputs)
             loss_fidelity = (1 - alpha) * 0.5 * torch.sum((weights*diff)**2)
-            # loss_l2 = rho * 0.5 * torch.sum((x - outputs[0, 0, ...] + mu)**2)
-            # loss = loss_fidelity + loss_l2
-            # # loss = loss_fidelity
-            # loss.backward()
-            # optimizer.step()
             print('epochs: [%d/%d], Ks: [%d/%d], time: %ds, Fidelity loss: %f' % (epoch, niter, k+1, K, time.time()-t0, loss_fidelity.item()))
 
             if flag == 1:
                 chi_recon = np.squeeze(np.asarray(outputs.cpu().detach()))
-                print('RMSE = {} in FINE'.format(compute_rmse(chi_recon, chi_true)))
+                print('RMSE = {} in FINE, SSIM = {} in FINE'.format(compute_rmse(chi_recon, chi_true), \
+                      ssim3D(torch.tensor(chi_recon[np.newaxis, np.newaxis, ...]), torch.tensor(chi_true[np.newaxis, np.newaxis, ...]))))
 
         # dual update
         with torch.no_grad():
