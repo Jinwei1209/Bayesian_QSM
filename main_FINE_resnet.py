@@ -17,7 +17,7 @@ from utils.train import BayesianQSM_train
 from utils.medi import SMV_kernel, dipole_kernel, DLL2
 from utils.loss import *
 from utils.files import *
-from utils.test import compute_rmse, ssim3D
+from utils.test import compute_rmse, compute_ssim, compute_hfen
 
 '''
     FINE of resnet on top of pre-trained unet3d and resnet
@@ -52,7 +52,7 @@ if __name__ == '__main__':
 
     # parameters
     K = 2
-    lr = 1e-3
+    lr = 1e-4
     batch_size = 1
     B0_dir = (0, 0, 1)
     voxel_size = dataLoader_train.voxel_size
@@ -119,6 +119,7 @@ if __name__ == '__main__':
                 # label
                 try:
                     chi_true = np.squeeze(np.asarray(qsms * masks))
+                    mask = np.squeeze(np.asarray(masks))
                     print('Using simulated RDF')
                     flag = 1
                 except:
@@ -136,9 +137,9 @@ if __name__ == '__main__':
                 sio.savemat(rootDir+'/QSMnet.mat', adict)
 
                 if flag == 1:
-                    print('RMSE = {} in QSMnet, SSIM = {} in QSMnet'.format(compute_rmse(QSMnet, chi_true), \
-                          ssim3D(torch.tensor(QSMnet[np.newaxis, np.newaxis, ...]), torch.tensor(chi_true[np.newaxis, np.newaxis, ...]))))
-    
+                    print('QSMnet: RMSE = {}, SSIM = {}'.format(compute_rmse(QSMnet, chi_true), \
+                          compute_ssim(torch.tensor(QSMnet[np.newaxis, np.newaxis, ...]), torch.tensor(chi_true[np.newaxis, np.newaxis, ...]))))
+                    # print('QSMnet: HFEN = {}'.format(compute_hfen(QSMnet, chi_true, mask)))
     epoch = 0
     t0 = time.time()
     mu = torch.zeros(volume_size, device=device)
@@ -160,8 +161,8 @@ if __name__ == '__main__':
 
             if flag == 1:
                 chi_recon = np.squeeze(np.asarray(x.cpu().detach()))
-                print('RMSE = {} in DLL2, SSIM = {} in DLL2'.format(compute_rmse(chi_recon, chi_true), \
-                      ssim3D(torch.tensor(chi_recon[np.newaxis, np.newaxis, ...]), torch.tensor(chi_true[np.newaxis, np.newaxis, ...]))))
+                # print('DLL2: RMSE = {}, SSIM = {}'.format(compute_rmse(chi_recon, chi_true), \
+                #       compute_ssim(torch.tensor(chi_recon[np.newaxis, np.newaxis, ...]), torch.tensor(chi_true[np.newaxis, np.newaxis, ...]))))
 
         # network update
         for k in range(K):
@@ -191,13 +192,16 @@ if __name__ == '__main__':
 
             if flag == 1:
                 chi_recon = np.squeeze(np.asarray(outputs.cpu().detach()))
-                print('RMSE = {} in FINE, SSIM = {} in FINE'.format(compute_rmse(chi_recon, chi_true), \
-                      ssim3D(torch.tensor(chi_recon[np.newaxis, np.newaxis, ...]), torch.tensor(chi_true[np.newaxis, np.newaxis, ...]))))
+                # print('FINE: RMSE = {} SSIM = {}'.format(compute_rmse(chi_recon, chi_true), \
+                #       compute_ssim(torch.tensor(chi_recon[np.newaxis, np.newaxis, ...]), torch.tensor(chi_true[np.newaxis, np.newaxis, ...]))))
 
         # dual update
         with torch.no_grad():
             mu = mu + x - outputs[0, 0, ...]
-
+    chi_recon = np.squeeze(np.asarray(x.cpu().detach()))
+    print('FINE: RMSE = {} SSIM = {}'.format(compute_rmse(chi_recon, chi_true), \
+                      compute_ssim(torch.tensor(chi_recon[np.newaxis, np.newaxis, ...]), torch.tensor(chi_true[np.newaxis, np.newaxis, ...]))))
+    # print('FINE: HFEN = {}'.format(compute_hfen(chi_recon, chi_true, mask)))
     FINE = resnet(inputs_cat)[:, 0, ...]
     FINE = np.squeeze(np.asarray(FINE.cpu().detach()))
 

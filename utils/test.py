@@ -2,6 +2,7 @@ import numpy as np
 import math
 import torch
 import torch.nn.functional as F
+import scipy.ndimage
 
 from torch.autograd import Variable
 from math import exp
@@ -149,7 +150,8 @@ def ssim(img1, img2, window_size = 11, size_average = True):
     
     return _ssim(img1, img2, window, window_size, channel, size_average)
 
-def ssim3D(img1, img2, window_size = 11, size_average = True):
+# 3D SSIM
+def compute_ssim(img1, img2, window_size = 11, size_average = True):
 
     mask = abs(img2) > 0
     img1 = img1 * mask
@@ -173,3 +175,25 @@ def ssim3D(img1, img2, window_size = 11, size_average = True):
     window = window.type_as(img1)
     
     return _ssim_3D(img1, img2, window, window_size, channel, size_average)
+
+def compute_hfen(img1, img2, mask):
+     
+    # Laplacian of Gaussian filter to get high frequency information:
+    filt_siz = np.array([1, 1, 1]) * 15
+    sig = np.array([1, 1, 1]) * 1.5
+    
+    siz = (filt_siz - 1) / 2
+    x, y, z = np.meshgrid(np.arange(-siz[0], siz[0], 1), np.arange(-siz[1], siz[1], 1), np.arange(-siz[2], siz[2], 1))
+
+    h = np.exp(-(x*x/2/sig[0]**2 + y*y/2/sig[1]**2 + z*z/2/sig[2]**2))
+    h = h / np.sum(h)
+    
+    arg = (x*x/sig[0]**4 + y*y/sig[1]**4 + z*z/sig[2]**4 - (1/sig[0]**2 + 1/sig[1]**2 + 1/sig[2]**2))
+    H = arg * h
+    H = H - np.sum(H) / np.prod(2*siz+1)
+
+    img1_log = scipy.ndimage.convolve(img1, H) * mask
+    img2_log = scipy.ndimage.convolve(img2, H) * mask
+    return 100 * np.sqrt(np.sum((img1_log - img2_log)**2)) / np.sqrt(np.sum(img2_log**2))
+
+
