@@ -46,9 +46,7 @@ if __name__ == '__main__':
     #     patientID=patientID,
     #     flag_input=1
     # )
-    dataLoader_train = Simulation_ICH_loader(
-        split = 'test'
-    )
+    dataLoader_train = Simulation_ICH_loader(split = 'test')
 
     # parameters
     K = 2
@@ -155,14 +153,6 @@ if __name__ == '__main__':
                             device=device, P=P, alpha=alpha, rho=rho)
             x = dc_layer.CG_iter(phi=outputs[0, 0, ...], mu=mu, max_iter=100)
             x = P * x
-            adict = {}
-            adict['DLL2'] = np.squeeze(np.asarray(x.cpu().detach()))
-            sio.savemat(rootDir+'/DLL2.mat', adict)
-
-            if flag == 1:
-                chi_recon = np.squeeze(np.asarray(x.cpu().detach()))
-                # print('DLL2: RMSE = {}, SSIM = {}'.format(compute_rmse(chi_recon, chi_true), \
-                #       compute_ssim(torch.tensor(chi_recon[np.newaxis, np.newaxis, ...]), torch.tensor(chi_true[np.newaxis, np.newaxis, ...]))))
 
         # network update
         for k in range(K):
@@ -190,18 +180,28 @@ if __name__ == '__main__':
             loss_fidelity = (1 - alpha) * 0.5 * torch.sum((weights*diff)**2)
             print('epochs: [%d/%d], Ks: [%d/%d], time: %ds, Fidelity loss: %f' % (epoch, niter, k+1, K, time.time()-t0, loss_fidelity.item()))
 
-            if flag == 1:
-                chi_recon = np.squeeze(np.asarray(outputs.cpu().detach()))
-                # print('FINE: RMSE = {} SSIM = {}'.format(compute_rmse(chi_recon, chi_true), \
-                #       compute_ssim(torch.tensor(chi_recon[np.newaxis, np.newaxis, ...]), torch.tensor(chi_true[np.newaxis, np.newaxis, ...]))))
-
         # dual update
         with torch.no_grad():
             mu = mu + x - outputs[0, 0, ...]
-    chi_recon = np.squeeze(np.asarray(x.cpu().detach()))
-    print('FINE: RMSE = {} SSIM = {}'.format(compute_rmse(chi_recon, chi_true), \
+
+        # metrics
+        if flag == 1:
+                chi_recon = np.squeeze(np.asarray(outputs.cpu().detach()))
+                print('FINE: RMSE = {} SSIM = {}'.format(compute_rmse(chi_recon, chi_true), \
                       compute_ssim(torch.tensor(chi_recon[np.newaxis, np.newaxis, ...]), torch.tensor(chi_true[np.newaxis, np.newaxis, ...]))))
-    # print('FINE: HFEN = {}'.format(compute_hfen(chi_recon, chi_true, mask)))
+                chi_recon = np.squeeze(np.asarray(x.cpu().detach()))
+                print('DLL2: RMSE = {}, SSIM = {}'.format(compute_rmse(chi_recon, chi_true), \
+                      compute_ssim(torch.tensor(chi_recon[np.newaxis, np.newaxis, ...]), torch.tensor(chi_true[np.newaxis, np.newaxis, ...]))))
+        # last DLL2
+        if epoch == niter:
+            dc_layer = DLL2(D[0, 0, ...], weights[0, 0, ...], rdfs[0, 0, ...], \
+                            device=device, P=P, alpha=alpha, rho=rho)
+            x = dc_layer.CG_iter(phi=outputs[0, 0, ...], mu=mu, max_iter=1000)
+            x = P * x
+            adict = {}
+            adict['DLL2'] = np.squeeze(np.asarray(x.cpu().detach()))
+            sio.savemat(rootDir+'/DLL2.mat', adict)
+
     FINE = resnet(inputs_cat)[:, 0, ...]
     FINE = np.squeeze(np.asarray(FINE.cpu().detach()))
 

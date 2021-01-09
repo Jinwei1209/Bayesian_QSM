@@ -12,18 +12,13 @@ dataloader of simulated ICH patient (main_FINE_resnet.py)
 class Simulation_ICH_loader(data.Dataset):
     def __init__(
         self,
-        # dataFolder = '/data/Jinwei/Bayesian_QSM/Data_with_N_std/ICH_simulation',
-        dataFolder = '/data/Jinwei/Bayesian_QSM/Data_with_N_std/20190920_MEDI_3mm',
-        split = 'train'  # 'train', 'val', or 'test'
+        dataFolder = '/data/Jinwei/Bayesian_QSM/Data_with_N_std/20200529_new_hemo_cases',
+        patientID = [1]
     ):
         self.dataFolder = dataFolder
         print('Loading simulated ICH data')
-        if split == 'train':
-            self.list_IDs = ['ICH1', 'ICH4', 'ICH6', 'ICH9']
-        elif split == 'val':
-            self.list_IDs = ['ICH14']
-        elif split == 'test':
-            self.list_IDs = ['ICH4']  # ICH6, ICH8, ICH14, ICH9 good, ICH1, ICH4, ICH16 no different
+        self.list_IDs = [str(a) for a in patientID]
+
         voxel_size = [1, 1, 3]  # hemo cases
         radius = 5
         B0_dir = [0, 0, 1]
@@ -58,55 +53,34 @@ class Simulation_ICH_loader(data.Dataset):
     ):
         dataDir = self.dataFolder + '/' + self.patientID
 
-        # filename = '{0}/qsm_simu.mat'.format(dataDir)
-        # QSM = np.real(load_mat(filename, varname='qsm_simu'))
-        filename = '{0}/QSM_refine_100.mat'.format(dataDir)
-        QSM = np.real(load_mat(filename, varname='QSM_refine'))
+        filename = '{0}/mcTFI_removeoffset1.mat'.format(dataDir)
+        QSM = np.real(load_mat(filename, varname='QSM'))
         volume_size = QSM.shape
         self.volume_size = volume_size
 
-        # Mask = abs(QSM) > 0
-        filename = '{0}/Mask.mat'.format(dataDir)
         Mask = np.real(load_mat(filename, varname='Mask'))
-        Mask = SMV(Mask, volume_size, voxel_size, radius) > 0.999
         QSM = QSM * Mask
 
-        # filename = '{0}/iMag_simu.mat'.format(dataDir)
-        # iMag = np.real(load_mat(filename, varname='iMag_simu'))
-        filename = '{0}/iMag.mat'.format(dataDir)
+        filename = '{0}/cmridata.mat'.format(dataDir)
         iMag = np.real(load_mat(filename, varname='iMag'))
         
-        # filename = '{0}/N_std_simu.mat'.format(dataDir)
-        # N_std = np.real(load_mat(filename, varname='N_std_simu'))
-        # N_std[N_std>2e-3] = (N_std[N_std>2e-3] / 1e3)
-        filename = '{0}/N_std_m.mat'.format(dataDir)
         N_std = np.real(load_mat(filename, varname='N_std'))
         tempn = np.double(N_std)
 
         D = np.real(dipole_kernel(volume_size, voxel_size, B0_dir))
-        # S = SMV_kernel(volume_size, voxel_size, radius)
-        # D = np.real(S*D)
         self.D = D
         # tempn = np.sqrt(SMV(tempn**2, volume_size, voxel_size, radius)+tempn**2)
 
         wG = gradient_mask(iMag, Mask)
-        Data_weight = np.real(dataterm_mask(tempn, Mask, Normalize=False))
-        # Data_weight = np.ones(Data_weight.shape) * np.mean(Data_weight[Mask==1])
+        Data_weight = np.real(dataterm_mask(tempn, Mask, Normalize=True))
+        Data_weight = np.ones(Data_weight.shape) * np.mean(Data_weight[Mask==1])
 
         sigma = 1
-        np.random.seed(0)
         noise = N_std * np.random.normal(0, sigma)
-        noise = np.random.normal(0, sigma) * np.mean(N_std[Mask==1])
+        noise = 0
 
-        # filename = '{0}/rdf_simu.mat'.format(dataDir)
-        # RDF = np.real(load_mat(filename, varname='rdf_simu'))
         RDF = np.real(np.fft.ifftn(np.fft.fftn(QSM) * D)).astype(np.float32)
         RDF = (np.real(RDF) + noise) * Mask
-
-        # filename = '{0}/RDF.mat'.format(dataDir)
-        # RDF_input = np.real(load_mat(filename, varname='RDF'))
-        # RDF_input = RDF_input - SMV(RDF_input, volume_size, voxel_size, radius)
-        # RDF_input = np.real(RDF_input*Mask)/3.9034 + noise
         RDF_input = RDF
 
         self.QSM = QSM[np.newaxis, np.newaxis, ...]

@@ -203,14 +203,14 @@ class DLL2():
         rhs = self.rhs(phi, mu)
         # x = phi / self.P
         x = torch.zeros(phi.shape, device=self.device)
-        x[x != x] = 0
+        # x[x != x] = 0
 
         i, r, p = 0, rhs, rhs
         rTr = torch.sum(torch.conj(r) * r)
         while self.while_cond(i, rTr, max_iter):
             i, rTr, x, r, p = self.CG_body(i, rTr, x, r, p)
-            # if i % 10 == 0:
-            #     print('i = {0}, rTr = {1}'.format(i, rTr))
+            if i % 10 == 0:
+                print('i = {0}, rTr = {1}'.format(i, rTr))
         return x
 
      
