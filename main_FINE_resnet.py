@@ -72,7 +72,7 @@ if __name__ == '__main__':
     weights_dict = torch.load(rootDir+'/weight_2nets/unet3d_fine.pt')
     # weights_dict = torch.load(rootDir+'/weight_2nets/linear_factor=1_validation=6_test=7_unet3d.pt')
     unet3d.load_state_dict(weights_dict)
-    logVal_name = rootDir + '/weight_2nets/logs/2nets_val_ICH{}.txt'.format(opt['patientID'])
+    logVal_name = rootDir + '/weight_2nets/logs/2nets_val_ICH{}_new.txt'.format(opt['patientID'])
     file = open(logVal_name, 'a')
     file.write('alpha = {}, rho = {}, optm = {}:'.format(opt['alpha'], str(opt['rho']), opt['optm']))
     file.write('\n')
