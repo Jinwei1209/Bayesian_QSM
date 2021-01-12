@@ -30,6 +30,8 @@ if __name__ == '__main__':
     parser.add_argument('--patient_type', type=str, default='ICH')  # or MS_old, MS_new
     parser.add_argument('--patientID', type=int, default=8)
     parser.add_argument('--optm', type=int, default=0) # 0: Adam, 1: LBFGS
+    parser.add_argument('--alpha', type=float, default=0.5)
+    parser.add_argument('--rho', type=int, default=30)
     opt = {**vars(parser.parse_args())}
 
     patient_type = opt['patient_type']
@@ -46,11 +48,11 @@ if __name__ == '__main__':
     #     patientID=patientID,
     #     flag_input=1
     # )
-    dataLoader_train = Simulation_ICH_loader(split = 'test')
+    dataLoader_train = Simulation_ICH_loader(split='test', patientID=opt['patient_type']+str(opt['patientID']))
 
     # parameters
     K = 2
-    lr = 1e-4
+    lr = 5e-4
     batch_size = 1
     B0_dir = (0, 0, 1)
     voxel_size = dataLoader_train.voxel_size
@@ -70,6 +72,10 @@ if __name__ == '__main__':
     weights_dict = torch.load(rootDir+'/weight_2nets/unet3d_fine.pt')
     # weights_dict = torch.load(rootDir+'/weight_2nets/linear_factor=1_validation=6_test=7_unet3d.pt')
     unet3d.load_state_dict(weights_dict)
+    logVal_name = rootDir + '/weight_2nets/logs/2nets_val_ICH{}.txt'.format(opt['patientID'])
+    file = open(logVal_name, 'a')
+    file.write('alpha = {}, rho = {}, optm = {}:'.format(opt['alpha'], str(opt['rho']), opt['optm']))
+    file.write('\n')
 
     resnet = ResBlock(
         input_dim=2, 
@@ -141,8 +147,8 @@ if __name__ == '__main__':
     epoch = 0
     t0 = time.time()
     mu = torch.zeros(volume_size, device=device)
-    alpha = 0.5 * torch.ones(1, device=device)  # 0.5
-    rho = 30 * torch.ones(1, device=device)  # 30
+    alpha = opt['alpha'] * torch.ones(1, device=device)  # 0.5
+    rho = opt['rho'] * torch.ones(1, device=device)  # 30
     # P = 1 * torch.ones(1, device=device)
     P = outputs[0, 0, ...]
     while epoch < niter:
@@ -186,25 +192,38 @@ if __name__ == '__main__':
 
         # metrics
         if flag == 1:
-                chi_recon = np.squeeze(np.asarray(outputs.cpu().detach()))
-                print('FINE: RMSE = {} SSIM = {}'.format(compute_rmse(chi_recon, chi_true), \
-                      compute_ssim(torch.tensor(chi_recon[np.newaxis, np.newaxis, ...]), torch.tensor(chi_true[np.newaxis, np.newaxis, ...]))))
                 chi_recon = np.squeeze(np.asarray(x.cpu().detach()))
-                print('DLL2: RMSE = {}, SSIM = {}'.format(compute_rmse(chi_recon, chi_true), \
-                      compute_ssim(torch.tensor(chi_recon[np.newaxis, np.newaxis, ...]), torch.tensor(chi_true[np.newaxis, np.newaxis, ...]))))
+                metrics_dll2 = 'DLL2: RMSE = {}, SSIM = {}'.format(compute_rmse(chi_recon, chi_true), \
+                      compute_ssim(torch.tensor(chi_recon[np.newaxis, np.newaxis, ...]), torch.tensor(chi_true[np.newaxis, np.newaxis, ...])))
+                print(metrics_dll2)
+                chi_recon = np.squeeze(np.asarray(outputs.cpu().detach()))
+                metrics_fine = 'FINE: RMSE = {} SSIM = {}'.format(compute_rmse(chi_recon, chi_true), \
+                      compute_ssim(torch.tensor(chi_recon[np.newaxis, np.newaxis, ...]), torch.tensor(chi_true[np.newaxis, np.newaxis, ...])))
+                print(metrics_fine)
         # last DLL2
         if epoch == niter:
-            dc_layer = DLL2(D[0, 0, ...], weights[0, 0, ...], rdfs[0, 0, ...], \
-                            device=device, P=P, alpha=alpha, rho=rho)
-            x = dc_layer.CG_iter(phi=outputs[0, 0, ...], mu=mu, max_iter=1000)
-            x = P * x
+            with torch.no_grad():
+                dc_layer = DLL2(D[0, 0, ...], weights[0, 0, ...], rdfs[0, 0, ...], \
+                                device=device, P=P, alpha=alpha, rho=rho)
+                x = dc_layer.CG_iter(phi=outputs[0, 0, ...], mu=mu, max_iter=100)
+                x = P * x
+            chi_recon = np.squeeze(np.asarray(x.cpu().detach()))
+            metrics_dll2 = 'DLL2: RMSE = {}, SSIM = {}'.format(compute_rmse(chi_recon, chi_true), \
+                  compute_ssim(torch.tensor(chi_recon[np.newaxis, np.newaxis, ...]), torch.tensor(chi_true[np.newaxis, np.newaxis, ...])))
+            print(metrics_dll2)
+            # save
             adict = {}
             adict['DLL2'] = np.squeeze(np.asarray(x.cpu().detach()))
             sio.savemat(rootDir+'/DLL2.mat', adict)
-
+    # save
     FINE = resnet(inputs_cat)[:, 0, ...]
     FINE = np.squeeze(np.asarray(FINE.cpu().detach()))
-
     adict = {}
     adict['FINE'] = FINE
     sio.savemat(rootDir+'/FINE.mat', adict)
+
+    # write logs
+    file.write(metrics_dll2)
+    file.write('\n')
+    file.write(metrics_fine)
+    file.write('\n')

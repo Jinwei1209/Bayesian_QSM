@@ -14,7 +14,8 @@ class Simulation_ICH_loader(data.Dataset):
         self,
         # dataFolder = '/data/Jinwei/Bayesian_QSM/Data_with_N_std/ICH_simulation',
         dataFolder = '/data/Jinwei/Bayesian_QSM/Data_with_N_std/20190920_MEDI_3mm',
-        split = 'train'  # 'train', 'val', or 'test'
+        split = 'train',  # 'train', 'val', or 'test'
+        patientID = 'ICH8'
     ):
         self.dataFolder = dataFolder
         print('Loading simulated ICH data')
@@ -23,7 +24,7 @@ class Simulation_ICH_loader(data.Dataset):
         elif split == 'val':
             self.list_IDs = ['ICH14']
         elif split == 'test':
-            self.list_IDs = ['ICH4']  # ICH6, ICH8, ICH14, ICH9 good, ICH1, ICH4, ICH16 no different
+            self.list_IDs = [patientID]
         voxel_size = [1, 1, 3]  # hemo cases
         radius = 5
         B0_dir = [0, 0, 1]
