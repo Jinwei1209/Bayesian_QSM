@@ -51,8 +51,7 @@ if __name__ == '__main__':
     dataLoader_train = Simulation_ICH_loader(split='test', patientID=opt['patient_type']+str(opt['patientID']))
 
     # parameters
-    K = 4
-    lr = 5e-4
+    lr = 1e-3
     batch_size = 1
     B0_dir = (0, 0, 1)
     voxel_size = dataLoader_train.voxel_size
@@ -93,9 +92,11 @@ if __name__ == '__main__':
     if opt['optm'] == 1:
         optimizer = optim.LBFGS(resnet.parameters(), history_size=3, max_iter=4)
         niter = 5
+        K = 1
     else:
         optimizer = optim.Adam(resnet.parameters(), lr=lr, betas=(0.5, 0.999))
         niter = 5
+        K = 4
 
     epoch = 0
     loss_iters = np.zeros(niter)
@@ -192,10 +193,10 @@ if __name__ == '__main__':
             diff = torch.abs(rdfs - RDFs_outputs)
             loss_fidelity = torch.sum((weights*diff)**2)
             fidelity_fine = 'epochs: [%d/%d], Ks: [%d/%d], time: %ds, Fidelity loss: %f' % (epoch, niter, k+1, K, time.time()-t0, loss_fidelity.item())
+            print(fidelity_fine)
             if k == K-1:
-                print(fidelity_fine)
-            file.write(fidelity_fine)
-            file.write('\n')
+                file.write(fidelity_fine)
+                file.write('\n')
 
         # dual update
         with torch.no_grad():
