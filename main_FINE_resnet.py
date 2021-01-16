@@ -51,7 +51,7 @@ if __name__ == '__main__':
     dataLoader_train = Simulation_ICH_loader(split='test', patientID=opt['patient_type']+str(opt['patientID']))
 
     # parameters
-    K = 1
+    K = 4
     lr = 5e-4
     batch_size = 1
     B0_dir = (0, 0, 1)
@@ -72,9 +72,10 @@ if __name__ == '__main__':
     weights_dict = torch.load(rootDir+'/weight_2nets/unet3d_fine.pt')
     # weights_dict = torch.load(rootDir+'/weight_2nets/linear_factor=1_validation=6_test=7_unet3d.pt')
     unet3d.load_state_dict(weights_dict)
-    logVal_name = rootDir + '/weight_2nets/logs/2nets_val_ICH{}_new.txt'.format(opt['patientID'])
+    logVal_name = rootDir + '/weight_2nets/logs/2nets_val_ICH{}.txt'.format(opt['patientID'])
     file = open(logVal_name, 'a')
-    file.write('alpha = {}, rho = {}, optm = {}:'.format(opt['alpha'], str(opt['rho']), opt['optm']))
+    file.write('ICH = {}, alpha = {}, rho = {}, optm = {}:'.format(opt['patientID'], \
+                opt['alpha'], str(opt['rho']), opt['optm']))
     file.write('\n')
 
     resnet = ResBlock(
@@ -86,11 +87,12 @@ if __name__ == '__main__':
     weights_dict = torch.load(rootDir+'/weight_2nets/resnet_fine.pt', map_location='cuda:0')
     # weights_dict = torch.load(rootDir+'/weight_2nets/linear_factor=1_validation=6_test=7_resnet.pt')
     resnet.load_state_dict(weights_dict)
+    rootDir = rootDir + '/result_2nets'
 
     # optimizer
     if opt['optm'] == 1:
         optimizer = optim.LBFGS(resnet.parameters(), history_size=3, max_iter=4)
-        niter = 6
+        niter = 5
     else:
         optimizer = optim.Adam(resnet.parameters(), lr=lr, betas=(0.5, 0.999))
         niter = 5
@@ -141,11 +143,13 @@ if __name__ == '__main__':
                 QSMnet = QSMnet - np.mean(QSMnet[mask_csf==1])
                 adict = {}
                 adict['QSMnet'] = QSMnet
-                sio.savemat(rootDir+'/QSMnet.mat', adict)
+                sio.savemat(rootDir+'/QSMnet_ICH={}_alpha={}_optm={}.mat'.format(opt['patientID'], \
+                opt['alpha'], opt['optm']), adict)
 
                 if flag == 1:
-                    print('QSMnet: RMSE = {}, SSIM = {}'.format(compute_rmse(QSMnet, chi_true, mask_csf), \
-                          compute_ssim(torch.tensor(QSMnet[np.newaxis, np.newaxis, ...]), torch.tensor(chi_true[np.newaxis, np.newaxis, ...]), masks_csf)))
+                    metrics_qsmnet = 'QSMnet: RMSE = {}, SSIM = {}'.format(compute_rmse(QSMnet, chi_true, mask_csf), \
+                          compute_ssim(torch.tensor(QSMnet[np.newaxis, np.newaxis, ...]), torch.tensor(chi_true[np.newaxis, np.newaxis, ...]), masks_csf))
+                    print(metrics_qsmnet)
                     # print('QSMnet: HFEN = {}'.format(compute_hfen(QSMnet, chi_true, mask)))
     epoch = 0
     t0 = time.time()
@@ -153,14 +157,14 @@ if __name__ == '__main__':
     alpha = opt['alpha'] * torch.ones(1, device=device)  # 0.5
     rho = opt['rho'] * torch.ones(1, device=device)  # 30
     P = 1 * torch.ones(1, device=device)
-    # P = outputs[0, 0, ...]
+    # P = torch.abs(outputs[0, 0, ...])
     while epoch < niter:
         epoch += 1
         # dll2 update
         with torch.no_grad():
             dc_layer = DLL2(D[0, 0, ...], weights[0, 0, ...], rdfs[0, 0, ...], \
                             device=device, P=P, alpha=alpha, rho=rho)
-            x = dc_layer.CG_iter(phi=outputs[0, 0, ...], mu=mu, max_iter=100)
+            x = dc_layer.CG_iter(phi=outputs[0, 0, ...], mu=mu, max_iter=200)
             x = P * x
 
         # network update
@@ -187,7 +191,11 @@ if __name__ == '__main__':
             RDFs_outputs = torch.real(fft.ifftn((fft.fftn(outputs_cplx, dim=[2, 3, 4]) * D), dim=[2, 3, 4]))
             diff = torch.abs(rdfs - RDFs_outputs)
             loss_fidelity = torch.sum((weights*diff)**2)
-            print('epochs: [%d/%d], Ks: [%d/%d], time: %ds, Fidelity loss: %f' % (epoch, niter, k+1, K, time.time()-t0, loss_fidelity.item()))
+            fidelity_fine = 'epochs: [%d/%d], Ks: [%d/%d], time: %ds, Fidelity loss: %f' % (epoch, niter, k+1, K, time.time()-t0, loss_fidelity.item())
+            if k == K-1:
+                print(fidelity_fine)
+            file.write(fidelity_fine)
+            file.write('\n')
 
         # dual update
         with torch.no_grad():
@@ -219,7 +227,8 @@ if __name__ == '__main__':
     DLL2 = DLL2 - np.mean(DLL2[mask_csf==1])
     adict = {}
     adict['DLL2'] = DLL2
-    sio.savemat(rootDir+'/DLL2.mat', adict)
+    sio.savemat(rootDir+'/DLL2_ICH={}_alpha={}_optm={}.mat'.format(opt['patientID'], \
+                opt['alpha'], opt['optm']), adict)
 
     # save
     FINE = resnet(inputs_cat)[:, 0, ...]
@@ -227,14 +236,18 @@ if __name__ == '__main__':
     FINE = FINE - np.mean(FINE[mask_csf==1])
     adict = {}
     adict['FINE'] = FINE
-    sio.savemat(rootDir+'/FINE.mat', adict)
+    sio.savemat(rootDir+'/FINE_ICH={}_alpha={}_optm={}.mat'.format(opt['patientID'], \
+                opt['alpha'], opt['optm']), adict)
 
     Truth = chi_true - np.mean(chi_true[mask_csf==1])
     adict = {}
     adict['Truth'] = Truth
-    sio.savemat(rootDir+'/Truth.mat', adict)
+    sio.savemat(rootDir+'/Truth_ICH={}_alpha={}_optm={}.mat'.format(opt['patientID'], \
+                opt['alpha'], opt['optm']), adict)
 
     # write logs
+    file.write(metrics_qsmnet)
+    file.write('\n')
     file.write(metrics_dll2)
     file.write('\n')
     file.write(metrics_fine)
