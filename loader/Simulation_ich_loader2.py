@@ -7,7 +7,7 @@ from utils.medi import *
 from utils.data import *
 
 '''
-dataloader of simulated ICH patient (main_FINE_resnet.py)
+dataloader of simulated ICH patient using FINE reconstruction as the ground truth (main_FINE_resnet.py)
 '''
 class Simulation_ICH_loader(data.Dataset):
     def __init__(
@@ -39,6 +39,7 @@ class Simulation_ICH_loader(data.Dataset):
         B0_dir
     ):
         self.QSMs, self.RDFs_input, self.RDFs, self.Masks, self.Data_weights, self.wGs, self.Ds = [], [], [], [], [], [], []
+        self.Masks_CSF = []
         for i in range(self.num_subs):
             print('Loading ID: {0}'.format(self.list_IDs[i]))
             self.patientID = self.list_IDs[i]
@@ -47,6 +48,7 @@ class Simulation_ICH_loader(data.Dataset):
             self.RDFs_input.append(self.RDF_input[0])
             self.RDFs.append(self.RDF[0])
             self.Masks.append(self.Mask[0])
+            self.Masks_CSF.append(self.Mask_CSF[0])
             self.Data_weights.append(self.Data_weight[0])
             self.wGs.append(self.wG[0])
             self.Ds.append(self.D)
@@ -72,6 +74,9 @@ class Simulation_ICH_loader(data.Dataset):
         Mask = SMV(Mask, volume_size, voxel_size, radius) > 0.999
         QSM = QSM * Mask
 
+        filename = '{0}/Mask_CSF.mat'.format(dataDir)
+        Mask_CSF = np.real(load_mat(filename, varname='Mask_CSF'))
+
         # filename = '{0}/iMag_simu.mat'.format(dataDir)
         # iMag = np.real(load_mat(filename, varname='iMag_simu'))
         filename = '{0}/iMag.mat'.format(dataDir)
@@ -96,8 +101,8 @@ class Simulation_ICH_loader(data.Dataset):
 
         sigma = 1
         np.random.seed(0)
-        noise = N_std * np.random.normal(0, sigma)
-        noise = np.random.normal(0, sigma) * np.mean(N_std[Mask==1])
+        noise = N_std * np.random.normal(0, sigma) * 1
+        # noise = np.random.normal(0, sigma) * np.mean(N_std[Mask==1])
 
         # filename = '{0}/rdf_simu.mat'.format(dataDir)
         # RDF = np.real(load_mat(filename, varname='rdf_simu'))
@@ -114,6 +119,7 @@ class Simulation_ICH_loader(data.Dataset):
         self.RDF_input = RDF_input[np.newaxis, np.newaxis, ...]
         self.RDF = RDF[np.newaxis, np.newaxis, ...]
         self.Mask = Mask[np.newaxis, np.newaxis, ...]
+        self.Mask_CSF = Mask_CSF[np.newaxis, np.newaxis, ...]
         self.Data_weight = Data_weight[np.newaxis, np.newaxis, ...]
         self.wG = wG[np.newaxis, np.newaxis, ...]
 
@@ -121,4 +127,4 @@ class Simulation_ICH_loader(data.Dataset):
         return self.num_subs
 
     def __getitem__(self, idx):
-        return self.QSMs[idx], self.RDFs_input[idx], self.RDFs[idx], self.Masks[idx], self.Data_weights[idx], self.wGs[idx], self.Ds[idx]
+        return self.QSMs[idx], self.RDFs_input[idx], self.RDFs[idx], self.Masks[idx], self.Data_weights[idx], self.Masks_CSF[idx], self.Ds[idx]

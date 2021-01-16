@@ -51,7 +51,7 @@ if __name__ == '__main__':
     dataLoader_train = Simulation_ICH_loader(split='test', patientID=opt['patient_type']+str(opt['patientID']))
 
     # parameters
-    K = 2
+    K = 1
     lr = 5e-4
     batch_size = 1
     B0_dir = (0, 0, 1)
@@ -90,17 +90,17 @@ if __name__ == '__main__':
     # optimizer
     if opt['optm'] == 1:
         optimizer = optim.LBFGS(resnet.parameters(), history_size=3, max_iter=4)
-        niter = 3
+        niter = 6
     else:
         optimizer = optim.Adam(resnet.parameters(), lr=lr, betas=(0.5, 0.999))
-        niter = 10
+        niter = 5
 
     epoch = 0
     loss_iters = np.zeros(niter)
     while epoch < 2:
         epoch += 1
         # for idx, (rdf_inputs, rdfs, masks, weights, wGs, D) in enumerate(trainLoader):  # for real rdf
-        for idx, (qsms, rdf_inputs, rdfs, masks, weights, wGs, D) in enumerate(trainLoader):  # for simulated rdf
+        for idx, (qsms, rdf_inputs, rdfs, masks, weights, masks_csf, D) in enumerate(trainLoader):  # for simulated rdf
 
             if epoch == 1:
                 unet3d.eval(), resnet.eval()
@@ -117,13 +117,15 @@ if __name__ == '__main__':
                 inputs_cat = torch.cat((rdf_inputs, qsm_inputs1), dim=1)
                 rdfs = rdfs.to(device, dtype=torch.float)
                 weights = weights.to(device, dtype=torch.float)
-                wGs = wGs.to(device, dtype=torch.float)
+                masks_csf = masks_csf.to(device, dtype=torch.float)
                 D = D.to(device, dtype=torch.complex64)[None, ...]
 
                 # label
                 try:
                     chi_true = np.squeeze(np.asarray(qsms * masks))
                     mask = np.squeeze(np.asarray(masks))
+                    mask_csf = np.squeeze(np.asarray(masks_csf.cpu().detach()))
+                    masks = masks.to(device, dtype=torch.float)
                     print('Using simulated RDF')
                     flag = 1
                 except:
@@ -134,23 +136,24 @@ if __name__ == '__main__':
                 with torch.no_grad():
                     outputs = resnet(inputs_cat)
                 QSMnet = np.squeeze(np.asarray(outputs.cpu().detach()))
-                
+
                 print('Saving initial results')
+                QSMnet = QSMnet - np.mean(QSMnet[mask_csf==1])
                 adict = {}
                 adict['QSMnet'] = QSMnet
                 sio.savemat(rootDir+'/QSMnet.mat', adict)
 
                 if flag == 1:
-                    print('QSMnet: RMSE = {}, SSIM = {}'.format(compute_rmse(QSMnet, chi_true), \
-                          compute_ssim(torch.tensor(QSMnet[np.newaxis, np.newaxis, ...]), torch.tensor(chi_true[np.newaxis, np.newaxis, ...]))))
+                    print('QSMnet: RMSE = {}, SSIM = {}'.format(compute_rmse(QSMnet, chi_true, mask_csf), \
+                          compute_ssim(torch.tensor(QSMnet[np.newaxis, np.newaxis, ...]), torch.tensor(chi_true[np.newaxis, np.newaxis, ...]), masks_csf)))
                     # print('QSMnet: HFEN = {}'.format(compute_hfen(QSMnet, chi_true, mask)))
     epoch = 0
     t0 = time.time()
     mu = torch.zeros(volume_size, device=device)
     alpha = opt['alpha'] * torch.ones(1, device=device)  # 0.5
     rho = opt['rho'] * torch.ones(1, device=device)  # 30
-    # P = 1 * torch.ones(1, device=device)
-    P = outputs[0, 0, ...]
+    P = 1 * torch.ones(1, device=device)
+    # P = outputs[0, 0, ...]
     while epoch < niter:
         epoch += 1
         # dll2 update
@@ -183,7 +186,7 @@ if __name__ == '__main__':
             # loss
             RDFs_outputs = torch.real(fft.ifftn((fft.fftn(outputs_cplx, dim=[2, 3, 4]) * D), dim=[2, 3, 4]))
             diff = torch.abs(rdfs - RDFs_outputs)
-            loss_fidelity = (1 - alpha) * 0.5 * torch.sum((weights*diff)**2)
+            loss_fidelity = torch.sum((weights*diff)**2)
             print('epochs: [%d/%d], Ks: [%d/%d], time: %ds, Fidelity loss: %f' % (epoch, niter, k+1, K, time.time()-t0, loss_fidelity.item()))
 
         # dual update
@@ -193,34 +196,43 @@ if __name__ == '__main__':
         # metrics
         if flag == 1:
                 chi_recon = np.squeeze(np.asarray(x.cpu().detach()))
-                metrics_dll2 = 'DLL2: RMSE = {}, SSIM = {}'.format(compute_rmse(chi_recon, chi_true), \
-                      compute_ssim(torch.tensor(chi_recon[np.newaxis, np.newaxis, ...]), torch.tensor(chi_true[np.newaxis, np.newaxis, ...])))
+                metrics_dll2 = 'DLL2: RMSE = {}, SSIM = {}'.format(compute_rmse(chi_recon, chi_true, mask_csf), \
+                      compute_ssim(torch.tensor(chi_recon[np.newaxis, np.newaxis, ...]), torch.tensor(chi_true[np.newaxis, np.newaxis, ...]), masks_csf))
                 print(metrics_dll2)
                 chi_recon = np.squeeze(np.asarray(outputs.cpu().detach()))
-                metrics_fine = 'FINE: RMSE = {} SSIM = {}'.format(compute_rmse(chi_recon, chi_true), \
-                      compute_ssim(torch.tensor(chi_recon[np.newaxis, np.newaxis, ...]), torch.tensor(chi_true[np.newaxis, np.newaxis, ...])))
+                metrics_fine = 'FINE: RMSE = {} SSIM = {}'.format(compute_rmse(chi_recon, chi_true, mask_csf), \
+                      compute_ssim(torch.tensor(chi_recon[np.newaxis, np.newaxis, ...]), torch.tensor(chi_true[np.newaxis, np.newaxis, ...]), masks_csf))
                 print(metrics_fine)
-        # last DLL2
-        if epoch == niter:
-            with torch.no_grad():
-                dc_layer = DLL2(D[0, 0, ...], weights[0, 0, ...], rdfs[0, 0, ...], \
-                                device=device, P=P, alpha=alpha, rho=rho)
-                x = dc_layer.CG_iter(phi=outputs[0, 0, ...], mu=mu, max_iter=100)
-                x = P * x
-            chi_recon = np.squeeze(np.asarray(x.cpu().detach()))
-            metrics_dll2 = 'DLL2: RMSE = {}, SSIM = {}'.format(compute_rmse(chi_recon, chi_true), \
-                  compute_ssim(torch.tensor(chi_recon[np.newaxis, np.newaxis, ...]), torch.tensor(chi_true[np.newaxis, np.newaxis, ...])))
-            print(metrics_dll2)
-            # save
-            adict = {}
-            adict['DLL2'] = np.squeeze(np.asarray(x.cpu().detach()))
-            sio.savemat(rootDir+'/DLL2.mat', adict)
+        # # last DLL2
+        # if epoch == niter:
+        #     with torch.no_grad():
+        #         dc_layer = DLL2(D[0, 0, ...], weights[0, 0, ...], rdfs[0, 0, ...], \
+        #                         device=device, P=P, alpha=alpha, rho=rho)
+        #         x = dc_layer.CG_iter(phi=outputs[0, 0, ...], mu=mu, max_iter=100)
+        #         x = P * x
+        #     chi_recon = np.squeeze(np.asarray(x.cpu().detach()))
+        #     metrics_dll2 = 'DLL2: RMSE = {}, SSIM = {}'.format(compute_rmse(chi_recon, chi_true, mask_csf), \
+        #           compute_ssim(torch.tensor(chi_recon[np.newaxis, np.newaxis, ...]), torch.tensor(chi_true[np.newaxis, np.newaxis, ...]), masks_csf))
+        #     print(metrics_dll2)
+    # save
+    DLL2 = np.squeeze(np.asarray(x.cpu().detach()))
+    DLL2 = DLL2 - np.mean(DLL2[mask_csf==1])
+    adict = {}
+    adict['DLL2'] = DLL2
+    sio.savemat(rootDir+'/DLL2.mat', adict)
+
     # save
     FINE = resnet(inputs_cat)[:, 0, ...]
     FINE = np.squeeze(np.asarray(FINE.cpu().detach()))
+    FINE = FINE - np.mean(FINE[mask_csf==1])
     adict = {}
     adict['FINE'] = FINE
     sio.savemat(rootDir+'/FINE.mat', adict)
+
+    Truth = chi_true - np.mean(chi_true[mask_csf==1])
+    adict = {}
+    adict['Truth'] = Truth
+    sio.savemat(rootDir+'/Truth.mat', adict)
 
     # write logs
     file.write(metrics_dll2)

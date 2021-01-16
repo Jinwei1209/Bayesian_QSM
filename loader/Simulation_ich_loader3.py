@@ -7,17 +7,18 @@ from utils.medi import *
 from utils.data import *
 
 '''
-dataloader of simulated ICH patient (main_FINE_resnet.py)
+dataloader of simulated ICH patient using the synthetic ICH brain as the ground truth (main_FINE_resnet.py)
 '''
 class Simulation_ICH_loader(data.Dataset):
     def __init__(
         self,
-        dataFolder = '/data/Jinwei/Bayesian_QSM/Data_with_N_std/20200529_new_hemo_cases',
-        patientID = [1]
+        dataFolder = '/data/Jinwei/Bayesian_QSM/Data_with_N_std/ICH_simulation',
+        split = 'test',
+        patientID = 'ICH8'
     ):
         self.dataFolder = dataFolder
         print('Loading simulated ICH data')
-        self.list_IDs = [str(a) for a in patientID]
+        self.list_IDs = [patientID]
 
         voxel_size = [1, 1, 3]  # hemo cases
         radius = 5
@@ -53,18 +54,17 @@ class Simulation_ICH_loader(data.Dataset):
     ):
         dataDir = self.dataFolder + '/' + self.patientID
 
-        filename = '{0}/mcTFI_removeoffset1.mat'.format(dataDir)
-        QSM = np.real(load_mat(filename, varname='QSM'))
+        filename = '{0}/qsm_simu.mat'.format(dataDir)
+        QSM = np.float32(np.real(load_mat(filename, varname='qsm_simu')))
         volume_size = QSM.shape
         self.volume_size = volume_size
+        Mask = abs(QSM) > 0
 
-        Mask = np.real(load_mat(filename, varname='Mask'))
-        QSM = QSM * Mask
-
-        filename = '{0}/cmridata.mat'.format(dataDir)
-        iMag = np.real(load_mat(filename, varname='iMag'))
+        filename = '{0}/iMag_simu.mat'.format(dataDir)
+        iMag = np.real(load_mat(filename, varname='iMag_simu'))
         
-        N_std = np.real(load_mat(filename, varname='N_std'))
+        filename = '{0}/N_std_simu.mat'.format(dataDir)
+        N_std = np.real(load_mat(filename, varname='N_std_simu'))
         tempn = np.double(N_std)
 
         D = np.real(dipole_kernel(volume_size, voxel_size, B0_dir))
@@ -72,12 +72,15 @@ class Simulation_ICH_loader(data.Dataset):
         # tempn = np.sqrt(SMV(tempn**2, volume_size, voxel_size, radius)+tempn**2)
 
         wG = gradient_mask(iMag, Mask)
-        Data_weight = np.real(dataterm_mask(tempn, Mask, Normalize=True))
-        Data_weight = np.ones(Data_weight.shape) * np.mean(Data_weight[Mask==1])
+        Data_weight = np.real(dataterm_mask(tempn, Mask, Normalize=False))
+        # Data_weight = np.ones(Data_weight.shape) * np.mean(Data_weight[Mask==1])
+        Data_weight = np.ones(Data_weight.shape) * 200
 
         sigma = 1
-        noise = N_std * np.random.normal(0, sigma)
-        noise = 0
+        np.random.seed(0)
+        # noise = N_std * np.random.normal(0, sigma)
+        noise = 1 / Data_weight * np.random.normal(0, sigma) * 10
+        # noise = np.random.normal(0, sigma) * np.mean(N_std[Mask==1])
 
         RDF = np.real(np.fft.ifftn(np.fft.fftn(QSM) * D)).astype(np.float32)
         RDF = (np.real(RDF) + noise) * Mask

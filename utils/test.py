@@ -9,10 +9,11 @@ from math import exp
 from utils.data import *
 from utils.medi import *
 
-def compute_rmse(chi_recon, chi_true):
+def compute_rmse(chi_recon, chi_true, mask_csf):
     """chi_true is the refernce ground truth"""
     mask = abs(chi_true) > 0
-    chi_recon = chi_recon * mask
+    chi_recon = (chi_recon - np.mean(chi_recon[mask_csf==1])) * mask
+    chi_true = (chi_true - np.mean(chi_true[mask_csf==1])) * mask
     return np.sqrt(np.sum((chi_recon - chi_true)**2)/np.prod(chi_recon.shape))
 
 def compute_fidelity_error(chi, rdf, voxel_size):
@@ -151,10 +152,11 @@ def ssim(img1, img2, window_size = 11, size_average = True):
     return _ssim(img1, img2, window, window_size, channel, size_average)
 
 # 3D SSIM
-def compute_ssim(img1, img2, window_size = 11, size_average = True):
+def compute_ssim(img1, img2, mask_csf, window_size = 11, size_average = True):
 
     mask = abs(img2) > 0
-    img1 = img1 * mask
+    img1 = (img1 - torch.mean(img1[mask_csf==1])) * mask
+    img2 = (img2 - torch.mean(img2[mask_csf==1])) * mask
 
     #  modified to make sure dynamic range is 0-255 for QSM
     min_img = torch.min(torch.min(img1, torch.min(img2)))
