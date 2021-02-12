@@ -154,6 +154,9 @@ def ssim(img1, img2, window_size = 11, size_average = True):
 # 3D SSIM
 def compute_ssim(img1, img2, mask_csf, window_size = 11, size_average = True):
 
+    img1.to('cuda:0')
+    img2.to('cuda:0')
+    
     mask = abs(img2) > 0
     img1 = (img1 - torch.mean(img1[mask_csf==1])) * mask
     img2 = (img2 - torch.mean(img2[mask_csf==1])) * mask

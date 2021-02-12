@@ -14,12 +14,15 @@ class Patient_data_loader_all(data.Dataset):
         self,
         dataFolder = '/data/Jinwei/Bayesian_QSM/Data_with_N_std/20190920_MEDI_3mm',
         patientType='ICH',
-        flag_RDF_input=0
+        flag_RDF_input=0, # flag to have non-smv filtered input
+        flag_simu=0  # flag to simulate rdf from FINE
     ):
         self.patientType = patientType
         self.dataFolder = dataFolder
         self.flag_RDF_input = flag_RDF_input
-        self.flag_RDF_gen = flag_RDF_gen
+        self.flag_simu = flag_simu
+        if self.flag_simu == 1:
+            self.flag_RDF_input = 1
         if patientType == 'ICH':
             print('Loading ICH data')
             self.list_IDs = [1, 4, 6, 9]
@@ -65,6 +68,9 @@ class Patient_data_loader_all(data.Dataset):
     ):
         dataDir = self.dataFolder + '/' + self.patientID
 
+        filename = '{0}/QSM_refine_100.mat'.format(dataDir)
+        QSM = np.real(load_mat(filename, varname='QSM_refine'))
+        
         filename = '{0}/Mask.mat'.format(dataDir)
         Mask = np.real(load_mat(filename, varname='Mask'))
         volume_size = Mask.shape
@@ -80,23 +86,35 @@ class Patient_data_loader_all(data.Dataset):
         N_std = np.real(load_mat(filename, varname='N_std'))
         tempn = np.double(N_std)
 
-        D = dipole_kernel(volume_size, voxel_size, B0_dir)
-        S = SMV_kernel(volume_size, voxel_size, radius)
-        Mask = SMV(Mask, volume_size, voxel_size, radius) > 0.999
-        D = np.real(S*D)
-        self.D = D
-        tempn = np.sqrt(SMV(tempn**2, volume_size, voxel_size, radius)+tempn**2)
+        if self.flag_simu == 1:
+            D = np.real(dipole_kernel(volume_size, voxel_size, B0_dir))
+            self.D = D
+        else:
+            D = dipole_kernel(volume_size, voxel_size, B0_dir)
+            S = SMV_kernel(volume_size, voxel_size, radius)
+            Mask = SMV(Mask, volume_size, voxel_size, radius) > 0.999
+            D = np.real(S*D)
+            self.D = D
+            tempn = np.sqrt(SMV(tempn**2, volume_size, voxel_size, radius)+tempn**2)
 
         # gradient Mask
         wG = gradient_mask(iMag, Mask)
         # fidelity term weight
         Data_weight = np.real(dataterm_mask(tempn, Mask, Normalize=False))
 
-        filename = '{0}/RDF.mat'.format(dataDir)
-        RDF = np.real(load_mat(filename, varname='RDF'))
-        RDF_input = np.real(RDF*Mask)/factor
-        RDF = RDF - SMV(RDF, volume_size, voxel_size, radius)
-        RDF = np.real(RDF*Mask)/factor
+        if self.flag_simu == 1:
+            sigma = 1
+            np.random.seed(0)
+            noise = N_std * np.random.normal(0, sigma) * 1
+            RDF = np.real(np.fft.ifftn(np.fft.fftn(QSM) * D)).astype(np.float32)
+            RDF = (np.real(RDF) + noise) * Mask
+            RDF_input = RDF
+        else:
+            filename = '{0}/RDF.mat'.format(dataDir)
+            RDF = np.real(load_mat(filename, varname='RDF'))
+            RDF_input = np.real(RDF*Mask)/factor
+            RDF = RDF - SMV(RDF, volume_size, voxel_size, radius)
+            RDF = np.real(RDF*Mask)/factor
 
         self.RDF = RDF[np.newaxis, np.newaxis, ...]
         self.RDF_input = RDF_input[np.newaxis, np.newaxis, ...]

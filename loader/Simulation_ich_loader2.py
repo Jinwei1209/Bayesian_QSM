@@ -1,6 +1,8 @@
 import os
 import numpy as np
 import random
+import scipy.io as sio
+
 from torch.utils import data
 from utils.files import *
 from utils.medi import *
@@ -115,6 +117,10 @@ class Simulation_ICH_loader(data.Dataset):
         # RDF_input = np.real(RDF_input*Mask)/3.9034 + noise
         RDF_input = RDF
 
+        adict = {}
+        adict['RDF'] = RDF
+        sio.savemat('/data/Jinwei/Bayesian_QSM/RDF_simu.mat', adict)
+
         self.QSM = QSM[np.newaxis, np.newaxis, ...]
         self.RDF_input = RDF_input[np.newaxis, np.newaxis, ...]
         self.RDF = RDF[np.newaxis, np.newaxis, ...]
@@ -127,4 +133,4 @@ class Simulation_ICH_loader(data.Dataset):
         return self.num_subs
 
     def __getitem__(self, idx):
-        return self.QSMs[idx], self.RDFs_input[idx], self.RDFs[idx], self.Masks[idx], self.Data_weights[idx], self.Masks_CSF[idx], self.Ds[idx]
+        return self.QSMs[idx], self.RDFs_input[idx], self.RDFs[idx], self.wGs[idx], self.Data_weights[idx], self.Masks_CSF[idx], self.Ds[idx]

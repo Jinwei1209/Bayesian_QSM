@@ -35,6 +35,7 @@ if __name__ == '__main__':
     # typein parameters
     parser = argparse.ArgumentParser(description='Deep Learning QSM')
     parser.add_argument('--gpu_id', type=str, default='0')
+    parser.add_argument('--loader', type=int, default=0)  # 0 for invivo data, 1 for simulated data
     parser.add_argument('--case_validation', type=int, default=6)
     parser.add_argument('--case_test', type=int, default=7)
     parser.add_argument('--linear_factor', type=int, default=1)
@@ -58,7 +59,7 @@ if __name__ == '__main__':
     )
     unet3d.to(device0)
     # weights_dict = torch.load(rootDir+'/linear_factor=1_validation=6_test=7_unet3d.pt')   
-    weights_dict = torch.load(rootDir+'/rsa=0_validation=6_test=7__.pt')   
+    weights_dict = torch.load(rootDir+'/rsa=0_validation=6_test=7_.pt')   
     # weights_dict = torch.load('/data/Jinwei/Bayesian_QSM/weight_cv/weights_rsa=0_validation=6_test=7.pt')
     unet3d.load_state_dict(weights_dict)
 
@@ -69,7 +70,7 @@ if __name__ == '__main__':
     # dataLoader_train_MS = Patient_data_loader(patientType='MS_old', patientID=opt['patientID'], flag_input=1)
     # trainLoader_MS = data.DataLoader(dataLoader_train_MS, batch_size=batch_size, shuffle=True)
 
-    dataLoader_train_ICH = Patient_data_loader(patientType='ICH', patientID=opt['patientID'], flag_input=1)
+    dataLoader_train_ICH = Patient_data_loader(patientType='ICH', patientID=opt['patientID'], flag_input=1, flag_simu=opt['loader'])
     trainLoader_ICH = data.DataLoader(dataLoader_train_ICH, batch_size=batch_size, shuffle=True)
 
     epoch = 0

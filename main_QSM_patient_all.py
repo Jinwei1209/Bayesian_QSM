@@ -56,8 +56,9 @@ if __name__ == '__main__':
     patient_type = opt['patient_type']
 
     if patient_type == 'ICH':
-        valID = 14
-        folder_weights_VI = '/weights_VI'
+        valID = 16
+        # folder_weights_VI = '/weights_VI'
+        folder_weights_VI = '/weight_2nets'
     elif patient_type == 'MS_old' or 'MS_new':
         valID = 7
         folder_weights_VI = '/weights_VI2'
@@ -87,10 +88,10 @@ if __name__ == '__main__':
     if not flag_test:
 
         # dataloader
-        dataLoader_train = Patient_data_loader_all(patientType=patient_type)
+        dataLoader_train = Patient_data_loader_all(patientType=patient_type, flag_simu=1)
         trainLoader = data.DataLoader(dataLoader_train, batch_size=batch_size, shuffle=True)
 
-        dataLoader_val = Patient_data_loader(patientType=patient_type, patientID=valID)
+        dataLoader_val = Patient_data_loader(patientType=patient_type, patientID=valID, flag_simu=1)
         valLoader = data.DataLoader(dataLoader_val, batch_size=batch_size, shuffle=True)
 
         voxel_size = dataLoader_val.voxel_size
@@ -112,8 +113,10 @@ if __name__ == '__main__':
             epoch += 1
 
             unet3d.train()
-            for idx, (rdfs, masks, weights, wGs, D) in enumerate(trainLoader):
-
+            # for idx, (rdfs, masks, weights, wGs, D) in enumerate(trainLoader):
+            for idx, (rdfs_input, rdfs, masks, weights, wGs, D) in enumerate(trainLoader):
+                
+                rdfs_input = (rdfs_input.to(device, dtype=torch.float) + trans) * scale
                 rdfs = (rdfs.to(device, dtype=torch.float) + trans) * scale
                 masks = masks.to(device, dtype=torch.float)
                 weights = weights.to(device, dtype=torch.float)
@@ -121,7 +124,7 @@ if __name__ == '__main__':
 
                 loss_kl,  loss_tv, loss_expectation = BayesianQSM_train(
                     model=unet3d,
-                    input_RDFs=rdfs,
+                    input_RDFs=rdfs_input,
                     in_loss_RDFs=rdfs-trans*scale,
                     QSMs=0,
                     Masks=masks,
@@ -141,15 +144,17 @@ if __name__ == '__main__':
 
             unet3d.eval()
             with torch.no_grad():  # to solve memory exploration issue
-                for idx, (rdfs, masks, weights, wGs) in enumerate(valLoader):
-
+                # for idx, (rdfs, masks, weights, wGs) in enumerate(valLoader):
+                for idx, (rdfs_input, rdfs, masks, weights, wGs, D) in enumerate(valLoader):
+                    
+                    rdfs_input = (rdfs_input.to(device, dtype=torch.float) + trans) * scale
                     rdfs = (rdfs.to(device, dtype=torch.float) + trans) * scale
                     masks = masks.to(device, dtype=torch.float)
                     weights = weights.to(device, dtype=torch.float)
                     wGs = wGs.to(device, dtype=torch.float)
 
                     # calculate KLD
-                    outputs = unet3d(rdfs)
+                    outputs = unet3d(rdfs_input)
                     loss_kl = loss_KL(outputs=outputs, QSMs=0, flag_COSMOS=0, sigma_sq=0)
                     loss_expectation, loss_tv = loss_Expectation(
                         outputs=outputs, QSMs=0, in_loss_RDFs=rdfs-trans*scale, fidelity_Ws=weights, 
@@ -158,7 +163,7 @@ if __name__ == '__main__':
                     print('KL Divergence on validation set = {0}'.format(loss_total))
 
                     loss_iters[epoch-1] = loss_total
-                    np.save(rootDir+'/loss_validation_{0}_VI'.format(patient_type), loss_iters)
+                    # np.save(rootDir+'/loss_validation_{0}_VI'.format(patient_type), loss_iters)
             
             val_loss.append(loss_total)
             if val_loss[-1] == min(val_loss):
@@ -183,8 +188,8 @@ if __name__ == '__main__':
 
         if Lambda_tv:
             # weights_dict = torch.load(rootDir+folder_weights_VI+'/weights_lambda_tv={0}_epoch={1}.pt'.format(Lambda_tv, niter))
-            # weights_dict = torch.load(rootDir+folder_weights_VI+'/weights_lambda_tv={0}.pt'.format(Lambda_tv))
-            weights_dict = torch.load(rootDir+folder_weights_VI+'/weights_tv_no_initial.pt')  # no_initial_r: PDI-VI0 with r fixed = 3e-3, 
+            weights_dict = torch.load(rootDir+folder_weights_VI+'/weights_lambda_tv={0}.pt'.format(Lambda_tv))
+            # weights_dict = torch.load(rootDir+folder_weights_VI+'/weights_tv_no_initial.pt')  # no_initial_r: PDI-VI0 with r fixed = 3e-3, 
                                                                                                 # no_initial: PDI-VI0 with r learned
             # weights_dict['r'] = (torch.ones(1)*r).to(device)
             unet3d.load_state_dict(weights_dict)
@@ -207,14 +212,14 @@ if __name__ == '__main__':
             QSM = np.squeeze(np.asarray(means.cpu().detach()))
             STD = np.squeeze(np.asarray(stds.cpu().detach()))
 
-            # calculate KLD
-            loss_kl = loss_KL(outputs=outputs, QSMs=0, flag_COSMOS=0, sigma_sq=0)
-            loss_expectation, loss_tv = loss_Expectation(
-                outputs=outputs, QSMs=0, in_loss_RDFs=rdfs-trans*scale, fidelity_Ws=weights, 
-                gradient_Ws=wGs, D=D, flag_COSMOS=0, Lambda_tv=Lambda_tv, voxel_size=voxel_size, K=K)
-            loss_total = loss_kl.item() + loss_tv.item() + loss_expectation.item()
-            print('r: %f, Entropy loss: %2f, TV_loss: %2f, Expectation_loss: %2f, Total_loss: %2f'
-                % (unet3d.r, loss_kl.item(), loss_tv.item(), loss_expectation.item(), loss_total))
+            # # calculate KLD
+            # loss_kl = loss_KL(outputs=outputs, QSMs=0, flag_COSMOS=0, sigma_sq=0)
+            # loss_expectation, loss_tv = loss_Expectation(
+            #     outputs=outputs, QSMs=0, in_loss_RDFs=rdfs-trans*scale, fidelity_Ws=weights, 
+            #     gradient_Ws=wGs, D=D, flag_COSMOS=0, Lambda_tv=Lambda_tv, voxel_size=voxel_size, K=K)
+            # loss_total = loss_kl.item() + loss_tv.item() + loss_expectation.item()
+            # print('r: %f, Entropy loss: %2f, TV_loss: %2f, Expectation_loss: %2f, Total_loss: %2f'
+            #     % (unet3d.r, loss_kl.item(), loss_tv.item(), loss_expectation.item(), loss_total))
         
         if Lambda_tv:
             adict = {}

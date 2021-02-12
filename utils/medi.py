@@ -1,5 +1,5 @@
 import numpy as np
-import torch.fft as fft
+# import torch.fft as fft
 import torch
 PRECISION = 'float32'
 EPS = 1E-8
@@ -128,6 +128,7 @@ def fgrad(a, voxel_size):
     Dz = Dz/voxel_size[2]
     return np.concatenate((Dx[...,np.newaxis], Dy[...,np.newaxis], Dz[...,np.newaxis]), axis=3)
 
+
 # weighting mask of total variation term
 def gradient_mask(iMag, Mask, voxel_size=[1, 1, 3], percentage=0.9):
     field_noise_level = 0.01*np.max(iMag)
@@ -148,6 +149,27 @@ def gradient_mask(iMag, Mask, voxel_size=[1, 1, 3], percentage=0.9):
     wG = wG.astype(float)
     return wG
 
+
+def grad_torch(img, voxel_size=[1, 1, 1]):
+    Dx = torch.cat([img[1:, ...], img[-1:, ...]], 0) - img
+    Dy = torch.cat([img[:, 1:, ...], img[:, -1:, ...]], 1) - img
+    Dz = torch.cat([img[:, :, 1:, ...], img[:, :, -1:, ...]], 2) - img
+    Dx = Dx[..., None]/voxel_size[0]
+    Dy = Dy[..., None]/voxel_size[1]
+    Dz = Dz[..., None]/voxel_size[2]
+    return torch.cat([Dx, Dy, Dz], -1)
+    
+
+def div_torch(grad, voxel_size=[1, 1, 1]):
+    dx = grad[..., 0]
+    dy = grad[..., 1]
+    dz = grad[..., 2]
+    dxx = dx - torch.cat((dx[:1, :, :], dx[:-1, :, :]), dim=0)
+    dyy = dy - torch.cat((dy[:, :1, :], dy[:, :-1, :]), dim=1)
+    dzz = dz - torch.cat((dz[:, :, :1], dz[:, :, :-1]), dim=2)
+    return  - dxx/voxel_size[0] - dyy/voxel_size[1] - dzz/voxel_size[2]
+
+
 # DLL2 step
 class DLL2():
     '''
@@ -159,11 +181,13 @@ class DLL2():
         alpha: parameter on the fidelity term;
         rho: parameter on the regularization term;
     '''
-    def __init__(self, D, m, b, device, P=1, alpha=0.5, rho=10):
+    def __init__(self, D, m, b, wG, device, lambda_TV, P=1, alpha=0.5, rho=10):
         self.D = D
         self.m = m
         self.b = b
+        self.wG = wG
         self.device = device
+        self.lambda_TV = lambda_TV
         self.P = P
         self.alpha = alpha
         self.rho = rho
@@ -174,8 +198,14 @@ class DLL2():
         '''
             x: chi;
         '''
-        return self.alpha * self.P * self.Dconv(torch.conj(self.m) * self.m * self.Dconv(self.P * x)) + self.rho * self.P**2 * x
+        return self.alpha * self.P * self.Dconv(torch.conj(self.m) * self.m * self.Dconv(self.P * x)) + self.rho * self.P**2 * x + self.reg_TV(x)
     
+    def reg_TV(self, x):
+        '''
+            x: chi;
+        '''
+        return self.lambda_TV * div_torch(self.wG * self.wG*grad_torch(x)/torch.sqrt((self.wG*grad_torch(x))**2+1e-5))
+
     # right hand side in CG iteration
     def rhs(self, phi, mu):
         ''' 
