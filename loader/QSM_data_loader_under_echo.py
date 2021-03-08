@@ -71,7 +71,6 @@ class QSM_data_loader_under_echo(data.Dataset):
 
         D = dipole_kernel(volume_size, voxel_size, B0_dir)
         S = SMV_kernel(volume_size, voxel_size, radius)
-        Mask = SMV(Mask, volume_size, voxel_size, radius) > 0.999
         D = np.real(S*D)
         self.D = D
         tempn = np.sqrt(SMV(tempn**2, volume_size, voxel_size, radius)+tempn**2)
@@ -87,7 +86,8 @@ class QSM_data_loader_under_echo(data.Dataset):
 
         filename = '{0}/QSM{1}_6.mat'.format(self.dataFolder, self.patientID)
         RDF_6 = np.real(load_mat(filename, varname='RDF'))
-        RDF_6 = RDF_6 - SMV(RDF_6, volume_size, voxel_size, radius)
+        if self.flag_RDF_input == 0:
+            RDF_6 = RDF_6 - SMV(RDF_6, volume_size, voxel_size, radius)
         RDF_6 = np.real(RDF_6*Mask)/factor
 
         self.RDF_input = RDF_6[np.newaxis, np.newaxis, ...]

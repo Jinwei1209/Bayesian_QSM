@@ -28,12 +28,13 @@ if __name__ == '__main__':
     # typein parameters
     parser = argparse.ArgumentParser(description='Deep Learning QSM')
     parser.add_argument('--gpu_id', type=str, default='0')
-    parser.add_argument('--lambda_tv', type=float, default=1e-1)
+    parser.add_argument('--lambda_tv', type=float, default=1.0)
     parser.add_argument('--train', type=int, default=1)
     parser.add_argument('--weight_dir', type=str, default='weights_QSM_echo')
     opt = {**vars(parser.parse_args())}
 
     lambda_tv = opt['lambda_tv']
+    flag_RDF_input = 1
 
     os.environ['CUDA_VISIBLE_DEVICES'] = opt['gpu_id'] 
     t0 = time.time()
@@ -72,13 +73,15 @@ if __name__ == '__main__':
         # dataloader
         dataLoader_train = QSM_data_loader_under_echo(
             dataFolder = '/data/Jinwei/QSM_raw_CBIC/data_chao_echo_no_csf',
-            split='train'
+            split='train',
+            flag_RDF_input=flag_RDF_input
         )
         trainLoader = data.DataLoader(dataLoader_train, batch_size=batch_size, shuffle=True, pin_memory=True)
 
         dataLoader_val = QSM_data_loader_under_echo(
             dataFolder = '/data/Jinwei/QSM_raw_CBIC/data_chao_echo_no_csf',
-            split='val'
+            split='val',
+            flag_RDF_input=flag_RDF_input
         )
         valLoader = data.DataLoader(dataLoader_val, batch_size=batch_size, shuffle=False, pin_memory=True)
 
@@ -167,7 +170,8 @@ if __name__ == '__main__':
         # dataloader
         dataLoader = QSM_data_loader_under_echo(
             dataFolder = '/data/Jinwei/QSM_raw_CBIC/data_chao_echo_no_csf',
-            split='val'
+            split='val',
+            flag_RDF_input=flag_RDF_input
         )
         Loader = data.DataLoader(dataLoader, batch_size=batch_size, shuffle=False, pin_memory=True)
 
