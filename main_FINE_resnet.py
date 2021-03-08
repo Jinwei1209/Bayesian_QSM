@@ -3,7 +3,7 @@ import time
 import numpy as np 
 import torch
 import torch.optim as optim
-# import torch.fft as fft
+import torch.fft as fft
 import random
 import argparse
 
@@ -85,9 +85,9 @@ if __name__ == '__main__':
         flag_rsa=0
     )
     unet3d_.to(device0)
-    # weights_dict = torch.load(rootDir+'/weight_2nets/rsa=0_validation=6_test=7_.pt')  # for ICH8
-    # weights_dict = torch.load(rootDir+'/weight_cv/rsa=0_validation=6_test=7__.pt')  # for ICH14
-    weights_dict = torch.load(rootDir+'/weight_2nets/linear_factor=1_validation=6_test=7_unet3d.pt')
+    # weights_dict = torch.load(rootDir+'/weight_2nets/rsa=0_validation=6_test=7_.pt')
+    # weights_dict = torch.load(rootDir+'/weight_cv/rsa=0_validation=6_test=7__.pt')
+    weights_dict = torch.load(rootDir+'/weight_2nets/linear_factor=1_validation=6_test=7_unet3d.pt')  # used on Unet simu
     unet3d_.load_state_dict(weights_dict)
 
     # QSMnet plus
@@ -136,7 +136,8 @@ if __name__ == '__main__':
     if opt['loader'] == 0:
         rootDir = rootDir + '/result_2nets/invivo'
     else:
-        rootDir = rootDir + '/result_2nets/simu'
+        # rootDir = rootDir + '/result_2nets/simu'
+        rootDir = rootDir + '/result_2nets/simu_hobit2'
 
     # optimizer
     if opt['optm'] == 1:
@@ -147,7 +148,7 @@ if __name__ == '__main__':
         K = 4
 
     epoch = 0
-    niter = 10
+    niter = 5
     loss_iters = np.zeros(niter)
     while epoch < 2:
         epoch += 1
@@ -214,13 +215,13 @@ if __name__ == '__main__':
                 #     metrics_qsmnet = 'QSMnet: RMSE = {}, SSIM = {}'.format(compute_rmse(QSMnet, chi_true, mask_csf), \
                 #           compute_ssim(torch.tensor(QSMnet[np.newaxis, np.newaxis, ...]), torch.tensor(chi_true[np.newaxis, np.newaxis, ...]), masks_csf))
                 #     print(metrics_qsmnet)
-'''
+
     epoch = 0
     t0 = time.time()
     mu = torch.zeros(volume_size, device=device)
     alpha = opt['alpha'] * torch.ones(1, device=device)  # 0.5
     rho = opt['rho'] * torch.ones(1, device=device)  # 30
-    lambda_TV = 1e3 * torch.ones(1, device=device)  # 3.5e3 as real rdf and 1e3 as simu for ICH14, 0e3 for ICH8, 1e3 for ICH16
+    lambda_TV = 0e3 * torch.ones(1, device=device)  # 3.5e3 as real rdf and 1e3 as simu for ICH14, 0e3 for ICH8, 1e3 for ICH16
     P = 1 * torch.ones(1, device=device)
     # P = torch.abs(outputs[0, 0, ...])
     while epoch < niter:
@@ -229,7 +230,7 @@ if __name__ == '__main__':
         with torch.no_grad():
             dc_layer = DLL2(D[0, 0, ...], weights[0, 0, ...], rdfs[0, 0, ...], wG[0, 0, ...], \
                             device=device, lambda_TV=lambda_TV, P=P, alpha=alpha, rho=rho)
-            x = dc_layer.CG_iter(phi=outputs[0, 0, ...], mu=mu, max_iter=200)
+            x = dc_layer.CG_iter(phi=outputs[0, 0, ...], mu=mu, max_iter=100)
             x = P * x
 
         # network update
@@ -317,4 +318,3 @@ if __name__ == '__main__':
     # file.write('\n')
     # file.write(metrics_fine)
     # file.write('\n')
-'''

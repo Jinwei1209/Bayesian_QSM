@@ -25,8 +25,8 @@ from utils.files import *
 if __name__ == '__main__':
 
     # default parameters
-    niter = 100
-    lr = 1e-3
+    niter = 300
+    lr = 5e-4
     batch_size = 1
     Lambda_tv = 20
     trans = 0
@@ -58,9 +58,10 @@ if __name__ == '__main__':
         flag_rsa=0
     )
     unet3d.to(device0)
-    # weights_dict = torch.load(rootDir+'/linear_factor=1_validation=6_test=7_unet3d.pt')   
-    weights_dict = torch.load(rootDir+'/rsa=0_validation=6_test=7_.pt')   
-    # weights_dict = torch.load('/data/Jinwei/Bayesian_QSM/weight_cv/weights_rsa=0_validation=6_test=7.pt')
+    # weights_dict = torch.load(rootDir+'/linear_factor=1_validation=6_test=7_unet3d.pt')  # used for visualization on HOBIT
+    # weights_dict = torch.load(rootDir+'/rsa=0_validation=6_test=7_.pt')  # good for metrics on HOBIT ICH8
+    weights_dict = torch.load('/data/Jinwei/Bayesian_QSM/weight_cv/rsa=0_validation=6_test=7__.pt')
+    # weights_dict = torch.load(rootDir+'/unet3d_fine.pt')  # used for metrics on HOBIT ICH8
     unet3d.load_state_dict(weights_dict)
 
     # optimizer
@@ -97,7 +98,7 @@ if __name__ == '__main__':
                 QSM = np.squeeze(np.asarray(QSM.cpu().detach()))
                 adict = {}
                 adict['QSM'] = QSM
-                sio.savemat('/data/Jinwei/Bayesian_QSM/QSM_Unet_ICH{0}.mat'.format(opt['patientID']), adict)
+                sio.savemat('/data/Jinwei/Bayesian_QSM/result_2nets/simu_fine2/QSM_Unet_ICH{0}.mat'.format(opt['patientID']), adict)
 
             loss_fidelity, loss_tv = BayesianQSM_train(
                 model=unet3d,
@@ -123,4 +124,4 @@ if __name__ == '__main__':
             QSM = np.squeeze(np.asarray(QSM.cpu().detach()))
             adict = {}
             adict['QSM'] = QSM
-            sio.savemat('/data/Jinwei/Bayesian_QSM/QSM_FINE_ICH{0}_{1}.mat'.format(opt['patientID'], epoch), adict)
+            sio.savemat('/data/Jinwei/Bayesian_QSM/result_2nets/simu_fine2/QSM_FINE_ICH{0}_{1}.mat'.format(opt['patientID'], epoch), adict)

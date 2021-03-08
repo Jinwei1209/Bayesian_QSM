@@ -124,9 +124,9 @@ class Logger():
         self, 
         folderName,
         rootName, 
-        rsa,
-        validation,
-        test, 
+        rsa=0,
+        validation=6,
+        test=7, 
         flagFrint=True, 
         flagSave=True,
 

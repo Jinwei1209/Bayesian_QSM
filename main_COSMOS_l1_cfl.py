@@ -15,6 +15,8 @@ from models.unet import Unet
 from models.unetVggBNNAR1CLF import unetVggBNNAR1CLF
 from models.unetVggBNNAR1CLFRes import unetVggBNNAR1CLFRes
 from models.unetVggBNNAR1CLFEnc import unetVggBNNAR1CLFEnc
+from models.unetCFT import unetCFT
+from models.unetCFTMuSig256 import unetCFTMuSig256
 from utils.train import BayesianQSM_train
 from utils.medi import *
 from utils.loss import *
@@ -83,6 +85,20 @@ if __name__ == '__main__':
             num_filters=[2**i for i in range(5, 10)],  # or range(3, 8)
             use_deconv=1
         )
+    elif opt['flag_cfl'] == 4:
+        unet3d = unetCFT(
+            input_channels=1,
+            output_channels=1,
+            num_filters=[2**i for i in range(5, 10)],  # or range(3, 8)
+            use_deconv=1
+        )
+    elif opt['flag_cfl'] == 5:
+        unet3d = unetCFTMuSig256(
+            input_channels=1,
+            output_channels=1,
+            num_filters=[2**i for i in range(5, 10)],  # or range(3, 8)
+            use_deconv=1
+        )
 
     print(unet3d)
     unet3d.to(device)
@@ -97,14 +113,14 @@ if __name__ == '__main__':
     logger = Logger('logs', rootDir, opt['flag_cfl'], opt['case_validation'], opt['case_test'])
 
     # dataloader
-    dataLoader_train = COSMOS_data_loader_whole(
-        split='Train',
-        voxel_size=voxel_size,
-        case_validation=opt['case_validation'],
-        case_test=opt['case_test'],
-        flag_smv=flag_smv,
-        flag_gen=flag_gen)
-    trainLoader = data.DataLoader(dataLoader_train, batch_size=batch_size, shuffle=True, pin_memory=True)
+    # dataLoader_train = COSMOS_data_loader_whole(
+    #     split='Train',
+    #     voxel_size=voxel_size,
+    #     case_validation=opt['case_validation'],
+    #     case_test=opt['case_test'],
+    #     flag_smv=flag_smv,
+    #     flag_gen=flag_gen)
+    # trainLoader = data.DataLoader(dataLoader_train, batch_size=batch_size, shuffle=True, pin_memory=True)
 
     dataLoader_val = COSMOS_data_loader_whole(
         split='Val',
@@ -115,8 +131,8 @@ if __name__ == '__main__':
         flag_gen=flag_gen)
     valLoader = data.DataLoader(dataLoader_val, batch_size=batch_size, shuffle=True, pin_memory=True)
 
-    # dataLoader_train = dataLoader_val
-    # trainLoader = valLoader
+    dataLoader_train = dataLoader_val
+    trainLoader = valLoader
 
     epoch = 0
     gen_iterations = 1

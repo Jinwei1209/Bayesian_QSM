@@ -1,7 +1,7 @@
 #!/bin/bash
 # IDs=(8 14 16)
 
-IDs=(14)
+IDs=(8 14)
 
 for optm in {0..1}; do
 	for id in "${IDs[@]}";do
