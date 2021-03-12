@@ -22,6 +22,7 @@ class QSM_data_loader_under_echo(data.Dataset):
             self.list_IDs.remove(13), self.list_IDs.remove(14), self.list_IDs.remove(25), self.list_IDs.remove(26)
         elif split == 'val':
             self.list_IDs = list(range(27, 31))
+            # self.list_IDs = list(range(1, 5))
         self.flag_RDF_input = flag_RDF_input
         voxel_size = [1, 1, 2]
         factor = 3.1421
@@ -87,6 +88,7 @@ class QSM_data_loader_under_echo(data.Dataset):
         filename = '{0}/QSM{1}_6.mat'.format(self.dataFolder, self.patientID)
         RDF_6 = np.real(load_mat(filename, varname='RDF'))
         if self.flag_RDF_input == 0:
+            print('SMV Input')
             RDF_6 = RDF_6 - SMV(RDF_6, volume_size, voxel_size, radius)
         RDF_6 = np.real(RDF_6*Mask)/factor
 

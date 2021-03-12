@@ -128,7 +128,7 @@ def loss_QSMnet(outputs, QSMs, Masks, D):
     errGrad = errl1_grad + errModel_grad
     return errl1 + errModel + 0.1*errGrad
 
-def loss_FINE(outputs, in_loss_RDFs, fidelity_Ws, D):
+def loss_FINE(outputs, in_loss_RDFs, fidelity_Ws, D, nonlinear=0, factor=3.1421):
     outputs = outputs[:, 0:1, ...]
     device = outputs.get_device()
     
@@ -139,15 +139,28 @@ def loss_FINE(outputs, in_loss_RDFs, fidelity_Ws, D):
     D_cplx = np.concatenate((D, np.zeros(D.shape)), axis=-1)
     D_cplx = torch.tensor(D_cplx, device=device).float()
 
-    RDFs_outputs = torch.ifft(cplx_mlpy(torch.fft(outputs_cplx, 3), D_cplx), 3)
-
-    in_loss_RDFs_cplx = torch.zeros(*(outputs.size()+(2,))).to(device)
-    in_loss_RDFs_cplx[..., 0] = in_loss_RDFs
-
     fidelity_Ws_cplx = torch.zeros(*(outputs.size()+(2,))).to(device)
     fidelity_Ws_cplx[..., 0] = fidelity_Ws
-    diff = torch.abs(in_loss_RDFs_cplx - RDFs_outputs)
-    return torch.sum((fidelity_Ws_cplx*diff)**2)
+
+    RDFs_outputs = torch.ifft(cplx_mlpy(torch.fft(outputs_cplx, 3), D_cplx), 3)
+
+    if nonlinear == 0:
+        in_loss_RDFs_cplx = torch.zeros(*(outputs.size()+(2,))).to(device)
+        in_loss_RDFs_cplx[..., 0] = in_loss_RDFs
+        diff = torch.abs(in_loss_RDFs_cplx - RDFs_outputs)
+        return torch.sum((fidelity_Ws_cplx*diff)**2)
+    
+    elif nonlinear == 1:
+        RDF = RDFs_outputs[..., 0] * factor # radian
+        exp_RDF = torch.zeros(*(outputs.size()+(2,))).to(device)
+        exp_RDF[..., 0] = torch.cos(RDF)
+        exp_RDF[..., 1] = torch.sin(RDF)
+        RDF_measured = in_loss_RDFs * factor # radian
+        exp_measured = torch.zeros(*(outputs.size()+(2,))).to(device)
+        exp_measured[..., 0] = torch.cos(RDF_measured)
+        exp_measured[..., 1] = torch.sin(RDF_measured)
+        diff = cplx_mlpy(fidelity_Ws_cplx, exp_RDF - exp_measured)
+        return  torch.sum(cplx_mlpy(diff, cplx_conj(diff)))
 
 
 # tile torch tensor, each item in the dimension will be repeated K times before concatenate together
@@ -172,6 +185,17 @@ def cplx_mlpy(a, b):
     out = torch.empty(a.shape).to(device)
     out[..., 0] = a[..., 0]*b[..., 0] - a[..., 1]*b[..., 1]
     out[..., 1] = a[..., 0]*b[..., 1] + a[..., 1]*b[..., 0]
+    return out
+
+
+def cplx_conj(a):
+    """
+    conjugate of a complex number
+    """
+    device = a.get_device()
+    out = torch.empty(a.shape).to(device)
+    out[..., 0] = a[..., 0]
+    out[..., 1] = -a[..., 1]
     return out
 
 

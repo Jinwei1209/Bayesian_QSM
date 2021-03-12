@@ -85,9 +85,9 @@ if __name__ == '__main__':
         flag_rsa=0
     )
     unet3d_.to(device0)
-    # weights_dict = torch.load(rootDir+'/weight_2nets/rsa=0_validation=6_test=7_.pt')
-    # weights_dict = torch.load(rootDir+'/weight_cv/rsa=0_validation=6_test=7__.pt')
-    weights_dict = torch.load(rootDir+'/weight_2nets/linear_factor=1_validation=6_test=7_unet3d.pt')  # used on Unet simu
+    weights_dict = torch.load(rootDir+'/weight_2nets/rsa=0_validation=6_test=7_.pt')  # used to compute ich metric
+    # weights_dict = torch.load(rootDir+'/weight_cv/rsa=0_validation=6_test=7.pt')
+    # weights_dict = torch.load(rootDir+'/weight_2nets/linear_factor=1_validation=6_test=7_unet3d.pt')  # used on Unet simu
     unet3d_.load_state_dict(weights_dict)
 
     # QSMnet plus

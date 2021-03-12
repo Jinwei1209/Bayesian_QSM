@@ -212,14 +212,14 @@ if __name__ == '__main__':
             QSM = np.squeeze(np.asarray(means.cpu().detach()))
             STD = np.squeeze(np.asarray(stds.cpu().detach()))
 
-            # # calculate KLD
-            # loss_kl = loss_KL(outputs=outputs, QSMs=0, flag_COSMOS=0, sigma_sq=0)
-            # loss_expectation, loss_tv = loss_Expectation(
-            #     outputs=outputs, QSMs=0, in_loss_RDFs=rdfs-trans*scale, fidelity_Ws=weights, 
-            #     gradient_Ws=wGs, D=D, flag_COSMOS=0, Lambda_tv=Lambda_tv, voxel_size=voxel_size, K=K)
-            # loss_total = loss_kl.item() + loss_tv.item() + loss_expectation.item()
-            # print('r: %f, Entropy loss: %2f, TV_loss: %2f, Expectation_loss: %2f, Total_loss: %2f'
-            #     % (unet3d.r, loss_kl.item(), loss_tv.item(), loss_expectation.item(), loss_total))
+            # calculate KLD
+            loss_kl = loss_KL(outputs=outputs, QSMs=0, flag_COSMOS=0, sigma_sq=0)
+            loss_expectation, loss_tv = loss_Expectation(
+                outputs=outputs, QSMs=0, in_loss_RDFs=rdfs-trans*scale, fidelity_Ws=weights, 
+                gradient_Ws=wGs, D=D, flag_COSMOS=0, Lambda_tv=Lambda_tv, voxel_size=voxel_size, K=K)
+            loss_total = loss_kl.item() + loss_tv.item() + loss_expectation.item()
+            print('r: %f, Entropy loss: %2f, TV_loss: %2f, Expectation_loss: %2f, Total_loss: %2f'
+                % (unet3d.r, loss_kl.item(), loss_tv.item(), loss_expectation.item(), loss_total))
         
         if Lambda_tv:
             adict = {}

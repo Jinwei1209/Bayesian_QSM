@@ -1,5 +1,5 @@
 import numpy as np
-# import torch.fft as fft  # for pytorch 1.7.0+s
+import torch.fft as fft  # for pytorch 1.7.0+s
 import torch
 PRECISION = 'float32'
 EPS = 1E-8

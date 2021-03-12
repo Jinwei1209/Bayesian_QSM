@@ -10,6 +10,8 @@ from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils import data
 # from loader.COSMOS_data_loader import COSMOS_data_loader
 from loader.QSM_data_loader_under_echo import QSM_data_loader_under_echo
+from loader.Patient_data_loader import Patient_data_loader
+from loader.Patient_data_loader_all import Patient_data_loader_all
 from models.unet import Unet
 from models.unetag import UnetAg
 from utils.train import BayesianQSM_train
@@ -54,6 +56,10 @@ if __name__ == '__main__':
     unet3d.to(device)
 
     if opt['train'] == 1:
+        # load weights trained from COSMOS
+        weights_dict = torch.load('/data/Jinwei/Bayesian_QSM/weight_2nets/rsa=0_validation=6_test=7_.pt')
+        unet3d.load_state_dict(weights_dict)
+
         # optimizer
         optimizer = optim.Adam(unet3d.parameters(), lr = lr, betas=(0.5, 0.999))
         ms = [0.3, 0.5, 0.7, 0.9]
@@ -84,6 +90,14 @@ if __name__ == '__main__':
             flag_RDF_input=flag_RDF_input
         )
         valLoader = data.DataLoader(dataLoader_val, batch_size=batch_size, shuffle=False, pin_memory=True)
+
+        # # dataloader
+        # dataLoader_train = Patient_data_loader_all(patientType='ICH', flag_simu=1)
+        # trainLoader = data.DataLoader(dataLoader_train, batch_size=batch_size, shuffle=True)
+
+        # dataLoader_val = Patient_data_loader(patientType='ICH', patientID=16, flag_simu=1)
+        # valLoader = data.DataLoader(dataLoader_val, batch_size=batch_size, shuffle=True)
+        # voxel_size = dataLoader_val.voxel_size
 
         # dataLoader_train = dataLoader_val
         # trainLoader = valLoader
@@ -123,7 +137,8 @@ if __name__ == '__main__':
                     Lambda_tv=lambda_tv,
                     voxel_size=voxel_size,
                     K=1,
-                    flag_l1=2
+                    flag_l1=2,
+                    nonlinear=1
                 )
 
                 loss_fidelity_sum += loss_fidelity
@@ -146,7 +161,7 @@ if __name__ == '__main__':
 
                     outputs = unet3d(rdf_inputs)
                     # fidelity loss
-                    loss_fidelity = loss_FINE(outputs, rdfs, weights, np.asarray(D[0, ...]))
+                    loss_fidelity = loss_FINE(outputs, rdfs, weights, np.asarray(D[0, ...]), nonlinear=1)
                     # TV prior
                     grad = torch.zeros(*(outputs.size()+(3,))).to('cuda')
                     grad[..., 0] = dxp(outputs)/voxel_size[0]
@@ -163,8 +178,8 @@ if __name__ == '__main__':
             % (epoch, niter, Validation_loss[-1]))
 
             if Validation_loss[-1] == min(Validation_loss):
-                torch.save(unet3d.state_dict(), rootDir+'/weight_lambda_tv={}.pt'.format(lambda_tv))
-            torch.save(unet3d.state_dict(), rootDir+'/weight_last_lambda_tv={}.pt'.format(lambda_tv))
+                torch.save(unet3d.state_dict(), rootDir+'/weight_lambda_tv={}_nlr.pt'.format(lambda_tv))
+            torch.save(unet3d.state_dict(), rootDir+'/weight_last_lambda_tv={}_nlr.pt'.format(lambda_tv))
 
     elif opt['train'] == 0:
         # dataloader
@@ -173,12 +188,16 @@ if __name__ == '__main__':
             split='val',
             flag_RDF_input=flag_RDF_input
         )
+        QSMs = np.zeros((256, 206, 80, dataLoader.num_subs))
+
+        # dataLoader = Patient_data_loader(patientType='ICH', patientID=8, flag_simu=1)
+        # QSMs = np.zeros(dataLoader.volume_size + (1,))
+        
         Loader = data.DataLoader(dataLoader, batch_size=batch_size, shuffle=False, pin_memory=True)
 
-        weights_dict = torch.load(rootDir+'/weight_last_lambda_tv={}.pt'.format(lambda_tv))
+        weights_dict = torch.load(rootDir+'/weight_last_lambda_tv={}_nlr.pt'.format(lambda_tv))
         unet3d.load_state_dict(weights_dict)
         unet3d.eval()
-        QSMs = np.zeros((256, 206, 80, dataLoader.num_subs))
 
         with torch.no_grad():  # to solve memory exploration issue
             for idx, (rdf_inputs, rdfs, masks, weights, wGs, D) in enumerate(Loader):

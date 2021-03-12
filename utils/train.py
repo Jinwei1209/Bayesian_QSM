@@ -22,6 +22,7 @@ def BayesianQSM_train(
     Lambda_tv,
     voxel_size,
     flag_l1=0,  # 0 for Bayesian VI, 1 for QSMnet loss, 2 for FINE loss
+    nonlinear=0,
     K=1,
     flag_linear=1,
     flag_test=0
@@ -58,7 +59,7 @@ def BayesianQSM_train(
 
     else:
         # fidelity loss
-        loss_fidelity = loss_FINE(outputs, in_loss_RDFs, fidelity_Ws, D)
+        loss_fidelity = loss_FINE(outputs, in_loss_RDFs, fidelity_Ws, D, nonlinear)
         # TV prior
         grad = torch.zeros(*(outputs.size()+(3,))).to('cuda')
         grad[..., 0] = dxp(outputs)/voxel_size[0]
